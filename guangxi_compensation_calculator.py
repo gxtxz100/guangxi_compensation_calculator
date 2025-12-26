@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 广西人身损害赔偿项目自动计算程序
-根据广西最新标准计算各项赔偿项目并生成Word文档
+根据《最高人民法院关于审理人身损害赔偿案件适用法律若干问题的解释》及相关标准计算各项赔偿项目并生成Word文档
 """
 
 import tkinter as tk
@@ -11,21 +11,25 @@ from datetime import datetime
 from docx import Document
 from docx.shared import Pt, Inches, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.oxml.ns import qn
+from docx.oxml import OxmlElement
+from docx.enum.section import WD_SECTION
 import os
 
 
 class GuangxiCompensationCalculator:
     """广西人身损害赔偿计算器"""
     
-    # 2025年广西赔偿标准（示例数据，实际使用时需更新为最新标准）
+    # 2025年广西赔偿标准（根据桂高法会〔2025〕13号文件）
+    # 注意：2025年标准统一使用城镇居民人均可支配收入，不再区分城镇和农村
     STANDARDS = {
-        'urban_disposable_income': 45259,  # 城镇居民人均可支配收入（元/年）
-        'rural_disposable_income': 19455,  # 农村居民人均纯收入（元/年）
-        'urban_consumption': 29500,  # 城镇居民人均消费支出（元/年）
-        'rural_consumption': 15400,  # 农村居民人均消费支出（元/年）
+        'disposable_income': 43044,  # 广西上一年度城镇居民人均可支配收入（元/年）
+        'consumption': 26084,  # 广西上一年度城镇居民人均消费支出（元/年）
         'daily_meal_subsidy': 100,  # 住院伙食补助费（元/天）
-        'daily_nursing_fee': 150,  # 护理费标准（元/天）
-        'funeral_expense': 50000,  # 丧葬费（元）
+        'daily_nursing_fee': 157.9,  # 护理费标准（元/天，护工标准）
+        'funeral_expense': 49434,  # 丧葬费（元）
+        'industry_avg_salary': 80000,  # 行业平均工资（元/年），用于误工费计算
+        'traffic_fee_city': 30,  # 市内交通费标准（元/天）
     }
     
     # 伤残等级系数
@@ -44,8 +48,8 @@ class GuangxiCompensationCalculator:
     
     def __init__(self, root):
         self.root = root
-        self.root.title("广西人身损害赔偿计算器")
-        self.root.geometry("800x900")
+        self.root.title("广西人身损害赔偿计算器 瀛桂律所唐学智律师制作")
+        self.root.geometry("900x1000")
         self.root.resizable(True, True)
         
         # 创建主框架
@@ -66,14 +70,24 @@ class GuangxiCompensationCalculator:
         canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
         canvas.configure(yscrollcommand=scrollbar.set)
         
-        # 标题
-        title_label = tk.Label(scrollable_frame, text="广西人身损害赔偿计算器", 
-                               font=("Arial", 16, "bold"))
-        title_label.pack(pady=10)
+        # 标题区域 - 使用更美观的样式
+        title_frame = tk.Frame(scrollable_frame, bg="#2c3e50", height=60)
+        title_frame.pack(fill="x", padx=0, pady=0)
+        title_label = tk.Label(title_frame, text="广西人身损害赔偿计算器", 
+                               font=("Microsoft YaHei", 18, "bold"),
+                               bg="#2c3e50", fg="white")
+        title_label.pack(pady=15)
         
-        # 基本信息框架
-        basic_frame = ttk.LabelFrame(scrollable_frame, text="基本信息", padding=10)
-        basic_frame.pack(fill="x", padx=10, pady=5)
+        # 副标题
+        subtitle_label = tk.Label(title_frame, 
+                                 text="根据（桂高法会〔2025〕13号），（桂公通〔2025〕60号）",
+                                 font=("Microsoft YaHei", 9),
+                                 bg="#2c3e50", fg="#ecf0f1")
+        subtitle_label.pack(pady=(0, 10))
+        
+        # 基本信息框架 - 使用更美观的样式
+        basic_frame = ttk.LabelFrame(scrollable_frame, text="📋 基本信息", padding=12)
+        basic_frame.pack(fill="x", padx=15, pady=8)
         
         self.victim_name = self.create_entry(basic_frame, "受害人姓名：", 0)
         self.victim_age = self.create_entry(basic_frame, "受害人年龄：", 1)
@@ -82,10 +96,10 @@ class GuangxiCompensationCalculator:
         self.accident_date = self.create_entry(basic_frame, "事故发生日期（YYYY-MM-DD）：", 3)
         
         # 医疗相关费用框架
-        medical_frame = ttk.LabelFrame(scrollable_frame, text="医疗相关费用", padding=10)
-        medical_frame.pack(fill="x", padx=10, pady=5)
+        medical_frame = ttk.LabelFrame(scrollable_frame, text="🏥 医疗相关费用", padding=12)
+        medical_frame.pack(fill="x", padx=15, pady=8)
         
-        self.medical_expense = self.create_entry(medical_frame, "医疗费（元）：", 0)
+        self.medical_expense = self.create_entry(medical_frame, "医疗费（元，诊疗费+医药费+住院费）：", 0)
         self.hospital_days = self.create_entry(medical_frame, "住院天数：", 1)
         self.meal_subsidy = self.create_entry(medical_frame, "住院伙食补助费（元/天，默认100）：", 2)
         self.nutrition_fee = self.create_entry(medical_frame, "营养费（元）：", 3)
@@ -93,96 +107,118 @@ class GuangxiCompensationCalculator:
         self.accommodation_fee = self.create_entry(medical_frame, "住宿费（元）：", 5)
         
         # 误工费框架
-        work_frame = ttk.LabelFrame(scrollable_frame, text="误工费", padding=10)
-        work_frame.pack(fill="x", padx=10, pady=5)
+        work_frame = ttk.LabelFrame(scrollable_frame, text="💼 误工费", padding=12)
+        work_frame.pack(fill="x", padx=15, pady=8)
         
-        self.monthly_income = self.create_entry(work_frame, "月收入（元）：", 0)
-        self.work_loss_days = self.create_entry(work_frame, "误工天数：", 1)
+        self.work_income_type = self.create_combobox(work_frame, "收入类型：", 
+                                                     ["固定收入", "无固定收入（能证明最近三年平均）", "无固定收入（不能证明，参照行业平均）"], 0)
+        self.monthly_income = self.create_entry(work_frame, "月收入（元，固定收入时填写）：", 1)
+        self.avg_daily_income = self.create_entry(work_frame, "日均收入（元，无固定收入能证明时填写）：", 2)
+        self.work_loss_days = self.create_entry(work_frame, "误工天数：", 3)
         
         # 护理费框架
-        nursing_frame = ttk.LabelFrame(scrollable_frame, text="护理费", padding=10)
-        nursing_frame.pack(fill="x", padx=10, pady=5)
+        nursing_frame = ttk.LabelFrame(scrollable_frame, text="👨‍⚕️ 护理费", padding=12)
+        nursing_frame.pack(fill="x", padx=15, pady=8)
         
-        self.nursing_days = self.create_entry(nursing_frame, "护理天数：", 0)
-        self.nursing_fee_per_day = self.create_entry(nursing_frame, "护理费标准（元/天，默认150）：", 1)
-        self.nursing_count = self.create_entry(nursing_frame, "护理人数：", 2)
+        self.nursing_type = self.create_combobox(nursing_frame, "护理人员类型：", 
+                                                 ["有收入", "无收入或雇佣护工"], 0)
+        self.nursing_income = self.create_entry(nursing_frame, "护理人员日均收入（元，有收入时填写）：", 1)
+        self.nursing_days = self.create_entry(nursing_frame, "护理天数：", 2)
+        self.nursing_count = self.create_entry(nursing_frame, "护理人数（默认1人）：", 3)
         
         # 残疾相关框架
-        disability_frame = ttk.LabelFrame(scrollable_frame, text="残疾赔偿", padding=10)
-        disability_frame.pack(fill="x", padx=10, pady=5)
+        disability_frame = ttk.LabelFrame(scrollable_frame, text="♿ 残疾赔偿", padding=12)
+        disability_frame.pack(fill="x", padx=15, pady=8)
         
         self.disability_level = self.create_combobox(disability_frame, "伤残等级：", 
-                                                     [f"{i}级" for i in range(1, 11)], 0)
+                                                     ["无"] + [f"{i}级" for i in range(1, 11)], 0)
         self.disability_appliance_fee = self.create_entry(disability_frame, "残疾辅助器具费（元）：", 1)
         
         # 被扶养人生活费框架
-        dependent_frame = ttk.LabelFrame(scrollable_frame, text="被扶养人生活费", padding=10)
-        dependent_frame.pack(fill="x", padx=10, pady=5)
+        dependent_frame = ttk.LabelFrame(scrollable_frame, text="👨‍👩‍👧‍👦 被扶养人生活费", padding=12)
+        dependent_frame.pack(fill="x", padx=15, pady=8)
         
-        self.dependent_count = self.create_entry(dependent_frame, "被扶养人数量：", 0)
-        self.dependent_ages = self.create_entry(dependent_frame, "被扶养人年龄（用逗号分隔，如：5,10,15）：", 1)
+        self.dependent_info = self.create_entry(dependent_frame, "被扶养人信息（格式：年龄1,扶养人数1;年龄2,扶养人数2，如：5,2;65,1）：", 0)
+        tk.Label(dependent_frame, text="说明：不满18岁按(18-年龄)年计算；18-60岁无劳动能力按20年；60-75岁按[20-(年龄-60)]年；75岁以上按5年", 
+                font=("Arial", 8), fg="gray").grid(row=1, column=0, columnspan=2, sticky="w", padx=5)
         
         # 死亡相关框架
-        death_frame = ttk.LabelFrame(scrollable_frame, text="死亡赔偿（如适用）", padding=10)
-        death_frame.pack(fill="x", padx=10, pady=5)
+        death_frame = ttk.LabelFrame(scrollable_frame, text="⚰️ 死亡赔偿（如适用）", padding=12)
+        death_frame.pack(fill="x", padx=15, pady=8)
         
         self.is_death = tk.BooleanVar()
         tk.Checkbutton(death_frame, text="是否死亡", variable=self.is_death).grid(row=0, column=0, sticky="w", padx=5, pady=5)
         
         # 精神损害抚慰金框架
-        mental_frame = ttk.LabelFrame(scrollable_frame, text="精神损害抚慰金", padding=10)
-        mental_frame.pack(fill="x", padx=10, pady=5)
+        mental_frame = ttk.LabelFrame(scrollable_frame, text="💔 精神损害抚慰金", padding=12)
+        mental_frame.pack(fill="x", padx=15, pady=8)
         
         self.mental_damage = self.create_entry(mental_frame, "精神损害抚慰金（元）：", 0)
         
-        # 按钮框架
-        button_frame = ttk.Frame(scrollable_frame)
-        button_frame.pack(fill="x", padx=10, pady=20)
+        # 按钮框架 - 优化按钮样式
+        button_frame = tk.Frame(scrollable_frame, bg="#ecf0f1")
+        button_frame.pack(fill="x", padx=15, pady=20)
         
-        calculate_btn = tk.Button(button_frame, text="计算赔偿", 
-                                 command=self.calculate, bg="#4CAF50", 
-                                 fg="white", font=("Arial", 12, "bold"),
-                                 padx=20, pady=10)
-        calculate_btn.pack(side="left", padx=5)
+        calculate_btn = tk.Button(button_frame, text="✓ 计算赔偿", 
+                                 command=self.calculate, 
+                                 bg="#27ae60", fg="white", 
+                                 font=("Microsoft YaHei", 11, "bold"),
+                                 padx=25, pady=12, relief="flat",
+                                 cursor="hand2", activebackground="#229954",
+                                 activeforeground="white")
+        calculate_btn.pack(side="left", padx=8)
         
-        export_btn = tk.Button(button_frame, text="导出Word文档", 
-                               command=self.export_to_word, bg="#2196F3", 
-                               fg="white", font=("Arial", 12, "bold"),
-                               padx=20, pady=10)
-        export_btn.pack(side="left", padx=5)
+        export_btn = tk.Button(button_frame, text="📄 导出Word文档", 
+                               command=self.export_to_word, 
+                               bg="#3498db", fg="white", 
+                               font=("Microsoft YaHei", 11, "bold"),
+                               padx=25, pady=12, relief="flat",
+                               cursor="hand2", activebackground="#2980b9",
+                               activeforeground="white")
+        export_btn.pack(side="left", padx=8)
         
-        clear_btn = tk.Button(button_frame, text="清空数据", 
-                             command=self.clear_all, bg="#f44336", 
-                             fg="white", font=("Arial", 12, "bold"),
-                             padx=20, pady=10)
-        clear_btn.pack(side="left", padx=5)
+        clear_btn = tk.Button(button_frame, text="🗑️ 清空数据", 
+                             command=self.clear_all, 
+                             bg="#e74c3c", fg="white", 
+                             font=("Microsoft YaHei", 11, "bold"),
+                             padx=25, pady=12, relief="flat",
+                             cursor="hand2", activebackground="#c0392b",
+                             activeforeground="white")
+        clear_btn.pack(side="left", padx=8)
         
         # 结果显示框架
-        result_frame = ttk.LabelFrame(scrollable_frame, text="计算结果", padding=10)
-        result_frame.pack(fill="both", expand=True, padx=10, pady=5)
+        result_frame = ttk.LabelFrame(scrollable_frame, text="📊 计算结果", padding=12)
+        result_frame.pack(fill="both", expand=True, padx=15, pady=8)
         
         self.result_text = tk.Text(result_frame, height=15, wrap=tk.WORD, 
-                                   font=("Arial", 10))
+                                   font=("Consolas", 10), 
+                                   bg="#ffffff", fg="#2c3e50",
+                                   relief="solid", borderwidth=1)
         self.result_text.pack(fill="both", expand=True)
         
-        # 存储计算结果
+        # 存储计算结果和计算详情
         self.calculation_results = {}
+        self.calculation_details = {}  # 存储详细的计算公式和步骤
         
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
         
     def create_entry(self, parent, label_text, row):
         """创建输入框"""
-        tk.Label(parent, text=label_text).grid(row=row, column=0, sticky="w", padx=5, pady=5)
-        entry = tk.Entry(parent, width=30)
-        entry.grid(row=row, column=1, padx=5, pady=5)
+        label = tk.Label(parent, text=label_text, font=("Microsoft YaHei", 9))
+        label.grid(row=row, column=0, sticky="w", padx=8, pady=6)
+        entry = tk.Entry(parent, width=42, font=("Microsoft YaHei", 9),
+                         relief="solid", borderwidth=1, bg="#ffffff")
+        entry.grid(row=row, column=1, padx=8, pady=6)
         return entry
     
     def create_combobox(self, parent, label_text, values, row):
         """创建下拉框"""
-        tk.Label(parent, text=label_text).grid(row=row, column=0, sticky="w", padx=5, pady=5)
-        combobox = ttk.Combobox(parent, values=values, width=27, state="readonly")
-        combobox.grid(row=row, column=1, padx=5, pady=5)
+        label = tk.Label(parent, text=label_text, font=("Microsoft YaHei", 9))
+        label.grid(row=row, column=0, sticky="w", padx=8, pady=6)
+        combobox = ttk.Combobox(parent, values=values, width=39, state="readonly",
+                               font=("Microsoft YaHei", 9))
+        combobox.grid(row=row, column=1, padx=8, pady=6)
         if values:
             combobox.set(values[0])
         return combobox
@@ -203,6 +239,215 @@ class GuangxiCompensationCalculator:
         except ValueError:
             return default
     
+    def calculate_compensation_years(self, age):
+        """
+        计算赔偿年限
+        根据年龄计算：60周岁以下按20年；60周岁以上每增加一岁减少一年；75周岁以上按5年
+        """
+        if age < 60:
+            return 20
+        elif age >= 75:
+            return 5
+        else:
+            return 20 - (age - 60)
+    
+    def calculate_work_loss_fee(self):
+        """
+        计算误工费
+        根据《最高人民法院关于审理人身损害赔偿案件适用法律若干问题的解释》第20条
+        返回：(金额, 计算详情)
+        """
+        work_loss_days = self.get_int_value(self.work_loss_days)
+        if work_loss_days <= 0:
+            return 0, "误工天数为0，不计算误工费"
+        
+        income_type = self.work_income_type.get()
+        
+        if income_type == "固定收入":
+            # 受害人有固定收入的，误工费按照实际减少的收入计算
+            monthly_income = self.get_float_value(self.monthly_income)
+            if monthly_income > 0:
+                daily_income = monthly_income / 30
+                amount = daily_income * work_loss_days
+                detail = f"固定收入计算：\n月收入：{monthly_income:,.2f}元\n日均收入 = 月收入 ÷ 30 = {monthly_income:,.2f} ÷ 30 = {daily_income:,.2f}元/天\n误工费 = 日均收入 × 误工天数 = {daily_income:,.2f} × {work_loss_days} = {amount:,.2f}元"
+                return amount, detail
+            else:
+                return 0, "月收入为0，不计算误工费"
+        
+        elif income_type == "无固定收入（能证明最近三年平均）":
+            # 能证明最近三年平均收入的
+            avg_daily_income = self.get_float_value(self.avg_daily_income)
+            if avg_daily_income > 0:
+                amount = avg_daily_income * work_loss_days
+                detail = f"无固定收入（能证明最近三年平均）计算：\n最近三年平均日均收入：{avg_daily_income:,.2f}元/天\n误工费 = 日均收入 × 误工天数 = {avg_daily_income:,.2f} × {work_loss_days} = {amount:,.2f}元"
+                return amount, detail
+            else:
+                return 0, "日均收入为0，不计算误工费"
+        
+        else:  # 无固定收入（不能证明，参照行业平均）
+            # 不能证明的，参照受诉法院所在地相同或者相近行业上一年度职工的平均工资计算
+            industry_avg_salary = self.STANDARDS['industry_avg_salary']
+            daily_avg_salary = industry_avg_salary / 365
+            amount = daily_avg_salary * work_loss_days
+            detail = f"无固定收入（不能证明，参照行业平均）计算：\n行业平均工资：{industry_avg_salary:,.2f}元/年\n日均工资 = 年工资 ÷ 365 = {industry_avg_salary:,.2f} ÷ 365 = {daily_avg_salary:,.2f}元/天\n误工费 = 日均工资 × 误工天数 = {daily_avg_salary:,.2f} × {work_loss_days} = {amount:,.2f}元"
+            return amount, detail
+    
+    def calculate_nursing_fee(self):
+        """
+        计算护理费
+        根据《最高人民法院关于审理人身损害赔偿案件适用法律若干问题的解释》第21条
+        返回：(金额, 计算详情)
+        """
+        nursing_days = self.get_int_value(self.nursing_days)
+        nursing_count = self.get_int_value(self.nursing_count, 1)
+        
+        if nursing_days <= 0:
+            return 0, "护理天数为0，不计算护理费"
+        
+        nursing_type = self.nursing_type.get()
+        
+        if nursing_type == "有收入":
+            # 护理人员有收入的，参照误工费的规定计算
+            nursing_income = self.get_float_value(self.nursing_income)
+            if nursing_income > 0:
+                amount = nursing_income * nursing_days * nursing_count
+                detail = f"护理人员有收入计算：\n护理人员日均收入：{nursing_income:,.2f}元/天\n护理天数：{nursing_days}天\n护理人数：{nursing_count}人\n护理费 = 日均收入 × 护理天数 × 护理人数 = {nursing_income:,.2f} × {nursing_days} × {nursing_count} = {amount:,.2f}元"
+                return amount, detail
+            else:
+                return 0, "护理人员日均收入为0，不计算护理费"
+        else:
+            # 护理人员没有收入或者雇佣护工的，参照当地护工从事同等级别护理的劳务报酬标准计算
+            nursing_fee_per_day = self.STANDARDS['daily_nursing_fee']
+            amount = nursing_fee_per_day * nursing_days * nursing_count
+            detail = f"无收入或雇佣护工计算：\n护工标准：{nursing_fee_per_day:,.2f}元/天\n护理天数：{nursing_days}天\n护理人数：{nursing_count}人\n护理费 = 护工标准 × 护理天数 × 护理人数 = {nursing_fee_per_day:,.2f} × {nursing_days} × {nursing_count} = {amount:,.2f}元"
+            return amount, detail
+    
+    def calculate_dependent_living_expense(self, victim_age):
+        """
+        计算被扶养人生活费
+        根据《最高人民法院关于审理人身损害赔偿案件适用法律若干问题的解释》第28条
+        2025年标准统一使用城镇居民人均消费支出
+        
+        计算公式：
+        1. 不满18周岁：生活费 = 消费支出 × (18-实际年龄)
+        2. 18-60周岁（无劳动能力）：生活费 = 消费支出 × 20年
+        3. 60-75周岁：生活费 = 消费支出 × [20-(实际年龄-60)]年
+        4. 75周岁以上：生活费 = 消费支出 × 5年
+        5. 有其他扶养人时：赔偿义务人承担的费用 = 生活费 ÷ 扶养人数
+        6. 被扶养人有数人时：年赔偿总额 ≤ 消费支出
+        
+        返回：(金额, 计算详情)
+        """
+        dependent_info_str = self.dependent_info.get().strip()
+        if not dependent_info_str:
+            return 0, "未填写被扶养人信息，不计算被扶养人生活费"
+        
+        base_consumption = self.STANDARDS['consumption']  # 统一使用城镇居民标准
+        consumption_type = "广西上一年度城镇居民人均消费支出"
+        
+        # 解析被扶养人信息：格式为"年龄1,扶养人数1;年龄2,扶养人数2"
+        dependents = []
+        try:
+            for item in dependent_info_str.split(';'):
+                item = item.strip()
+                if not item:
+                    continue
+                if ',' in item:
+                    parts = item.split(',')
+                    age = int(parts[0].strip())
+                    support_count = int(parts[1].strip()) if len(parts) > 1 else 1
+                    dependents.append({'age': age, 'support_count': support_count})
+                else:
+                    # 如果没有逗号，只有年龄，默认扶养人数为1
+                    age = int(item)
+                    dependents.append({'age': age, 'support_count': 1})
+        except ValueError:
+            return 0, "被扶养人信息格式错误"
+        
+        if not dependents:
+            return 0, "未填写被扶养人信息，不计算被扶养人生活费"
+        
+        # 计算每个被扶养人的生活费年限和年生活费
+        dependent_expenses = []
+        detail_parts = [f"{consumption_type}：{base_consumption:,.2f}元/年\n"]
+        
+        for idx, dep in enumerate(dependents):
+            age = dep['age']
+            support_count = dep['support_count']
+            
+            # 计算该被扶养人的赔偿年限
+            if age < 18:
+                years = 18 - age
+                age_desc = f"不满18周岁，按(18-{age})年计算"
+            elif age >= 18 and age < 60:
+                years = 20
+                age_desc = f"18-60周岁（无劳动能力），按20年计算"
+            elif age >= 60 and age < 75:
+                years = 20 - (age - 60)
+                age_desc = f"60-75周岁，按[20-({age}-60)]={years}年计算"
+            else:  # 75岁以上
+                years = 5
+                age_desc = f"75周岁以上，按5年计算"
+            
+            if years <= 0:
+                continue
+            
+            # 计算该被扶养人的年生活费（需要除以扶养人数）
+            annual_expense_per_dependent = base_consumption / support_count
+            
+            dependent_expenses.append({
+                'age': age,
+                'years': years,
+                'support_count': support_count,
+                'annual_expense': annual_expense_per_dependent
+            })
+            
+            detail_parts.append(f"被扶养人{idx+1}：{age}岁，{age_desc}，扶养人数{support_count}人\n年生活费 = {base_consumption:,.2f} ÷ {support_count} = {annual_expense_per_dependent:,.2f}元/年\n")
+        
+        if not dependent_expenses:
+            return 0, "被扶养人信息无效"
+        
+        # 计算总费用，考虑年赔偿总额限制
+        max_years = max(exp['years'] for exp in dependent_expenses)
+        
+        total_expense = 0
+        year_details = []
+        for year in range(max_years):
+            year_total = 0
+            active_deps = []
+            for exp in dependent_expenses:
+                if year < exp['years']:
+                    year_total += exp['annual_expense']
+                    active_deps.append(f"{exp['age']}岁")
+            
+            # 年赔偿总额不能超过消费支出
+            original_total = year_total
+            year_total = min(year_total, base_consumption)
+            total_expense += year_total
+            
+            if year_total > 0:
+                if original_total > base_consumption:
+                    year_details.append(f"第{year+1}年：{'+'.join(active_deps)}的年生活费合计{original_total:,.2f}元，超过{base_consumption:,.2f}元，按{base_consumption:,.2f}元计算")
+                else:
+                    year_details.append(f"第{year+1}年：{'+'.join(active_deps)}的年生活费合计{year_total:,.2f}元")
+        
+        # 生成总计公式
+        year_amounts = []
+        for year in range(max_years):
+            year_total = 0
+            for exp in dependent_expenses:
+                if year < exp['years']:
+                    year_total += exp['annual_expense']
+            year_total = min(year_total, base_consumption)
+            if year_total > 0:
+                year_amounts.append(f"{year_total:,.2f}")
+        
+        total_formula = " + ".join(year_amounts) if year_amounts else "0"
+        
+        detail = "".join(detail_parts) + "\n按年计算明细：\n" + "\n".join(year_details) + f"\n\n总计 = " + total_formula + f" = {total_expense:,.2f}元"
+        
+        return total_expense, detail
+    
     def calculate(self):
         """计算各项赔偿"""
         try:
@@ -214,112 +459,110 @@ class GuangxiCompensationCalculator:
             victim_type = self.victim_type.get()
             is_urban = (victim_type == "城镇")
             
-            # 医疗费
+            # 1. 医疗费 = 诊疗费+医药费+住院费
             medical_expense = self.get_float_value(self.medical_expense)
             results['医疗费'] = medical_expense
+            if medical_expense > 0:
+                self.calculation_details['医疗费'] = f"医疗费 = 诊疗费 + 医药费 + 住院费 = {medical_expense:,.2f}元"
             
-            # 住院伙食补助费
+            # 2. 住院伙食补助费
             hospital_days = self.get_int_value(self.hospital_days)
             meal_subsidy_per_day = self.get_float_value(self.meal_subsidy, 
                                                        self.STANDARDS['daily_meal_subsidy'])
             meal_subsidy_total = hospital_days * meal_subsidy_per_day
             results['住院伙食补助费'] = meal_subsidy_total
+            if meal_subsidy_total > 0:
+                self.calculation_details['住院伙食补助费'] = f"住院天数：{hospital_days}天\n补助标准：{meal_subsidy_per_day:,.2f}元/天\n住院伙食补助费 = 住院天数 × 补助标准 = {hospital_days} × {meal_subsidy_per_day:,.2f} = {meal_subsidy_total:,.2f}元"
             
-            # 营养费
+            # 3. 营养费
             nutrition_fee = self.get_float_value(self.nutrition_fee)
             results['营养费'] = nutrition_fee
+            if nutrition_fee > 0:
+                self.calculation_details['营养费'] = f"营养费 = {nutrition_fee:,.2f}元"
             
-            # 交通费
+            # 4. 交通费
             traffic_fee = self.get_float_value(self.traffic_fee)
             results['交通费'] = traffic_fee
+            if traffic_fee > 0:
+                self.calculation_details['交通费'] = f"交通费 = {traffic_fee:,.2f}元"
             
-            # 住宿费
+            # 5. 住宿费
             accommodation_fee = self.get_float_value(self.accommodation_fee)
             results['住宿费'] = accommodation_fee
+            if accommodation_fee > 0:
+                self.calculation_details['住宿费'] = f"住宿费 = {accommodation_fee:,.2f}元"
             
-            # 误工费
-            monthly_income = self.get_float_value(self.monthly_income)
-            work_loss_days = self.get_int_value(self.work_loss_days)
-            if monthly_income > 0 and work_loss_days > 0:
-                daily_income = monthly_income / 30
-                work_loss_fee = daily_income * work_loss_days
-            else:
-                work_loss_fee = 0
+            # 6. 误工费（根据收入类型计算）
+            work_loss_fee, work_detail = self.calculate_work_loss_fee()
             results['误工费'] = work_loss_fee
+            self.calculation_details['误工费'] = work_detail
             
-            # 护理费
-            nursing_days = self.get_int_value(self.nursing_days)
-            nursing_count = self.get_int_value(self.nursing_count, 1)
-            nursing_fee_per_day = self.get_float_value(self.nursing_fee_per_day, 
-                                                       self.STANDARDS['daily_nursing_fee'])
-            nursing_fee_total = nursing_days * nursing_fee_per_day * nursing_count
+            # 7. 护理费（根据护理人员类型计算）
+            nursing_fee_total, nursing_detail = self.calculate_nursing_fee()
             results['护理费'] = nursing_fee_total
+            self.calculation_details['护理费'] = nursing_detail
             
-            # 残疾赔偿金
+            # 8. 残疾赔偿金（2025年标准统一使用城镇居民人均可支配收入）
             disability_level_str = self.disability_level.get()
             if disability_level_str and disability_level_str != "无":
                 disability_level = int(disability_level_str.replace("级", ""))
                 coefficient = self.DISABILITY_COEFFICIENTS.get(disability_level, 0)
-                base_income = (self.STANDARDS['urban_disposable_income'] if is_urban 
-                              else self.STANDARDS['rural_disposable_income'])
-                # 计算年限：75岁减去实际年龄，最低20年
-                years = max(20, 75 - victim_age)
+                base_income = self.STANDARDS['disposable_income']  # 统一使用城镇居民标准
+                income_type = "广西上一年度城镇居民人均可支配收入"
+                # 计算年限：根据年龄调整
+                years = self.calculate_compensation_years(victim_age)
                 disability_compensation = base_income * years * coefficient
                 results['残疾赔偿金'] = disability_compensation
+                year_desc = f"{years}年" if victim_age < 60 else (f"{years}年（60周岁以上每增加一岁减少一年）" if victim_age < 75 else f"{years}年（75周岁以上按5年计算）")
+                self.calculation_details['残疾赔偿金'] = f"伤残等级：{disability_level}级，系数：{coefficient}\n{income_type}：{base_income:,.2f}元/年\n赔偿年限：{year_desc}\n残疾赔偿金 = {income_type} × 赔偿年限 × 伤残系数 = {base_income:,.2f} × {years} × {coefficient} = {disability_compensation:,.2f}元"
             else:
                 results['残疾赔偿金'] = 0
             
-            # 残疾辅助器具费
+            # 9. 残疾辅助器具费
             disability_appliance_fee = self.get_float_value(self.disability_appliance_fee)
             results['残疾辅助器具费'] = disability_appliance_fee
+            if disability_appliance_fee > 0:
+                self.calculation_details['残疾辅助器具费'] = f"残疾辅助器具费 = {disability_appliance_fee:,.2f}元"
             
-            # 被扶养人生活费
-            dependent_count = self.get_int_value(self.dependent_count)
-            dependent_ages_str = self.dependent_ages.get().strip()
-            dependent_living_expense = 0
-            
-            if dependent_count > 0 and dependent_ages_str:
-                try:
-                    ages = [int(age.strip()) for age in dependent_ages_str.split(',')]
-                    base_consumption = (self.STANDARDS['urban_consumption'] if is_urban 
-                                      else self.STANDARDS['rural_consumption'])
-                    
-                    for age in ages:
-                        if age < 18:
-                            years = 18 - age
-                        elif age >= 60:
-                            years = 20  # 通常按20年计算
-                        else:
-                            years = 0
-                        
-                        if years > 0:
-                            # 按被扶养人数量分摊
-                            expense = (base_consumption * years) / max(dependent_count, 1)
-                            dependent_living_expense += expense
-                except ValueError:
-                    pass
-            
+            # 10. 被扶养人生活费（按年龄段精确计算，2025年标准统一使用城镇居民人均消费支出）
+            dependent_living_expense, dependent_detail = self.calculate_dependent_living_expense(victim_age)
             results['被扶养人生活费'] = dependent_living_expense
+            if dependent_living_expense > 0:
+                self.calculation_details['被扶养人生活费'] = dependent_detail
             
-            # 死亡赔偿金
+            # 11. 死亡赔偿金（2025年标准统一使用城镇居民人均可支配收入）
             if self.is_death.get():
-                base_income = (self.STANDARDS['urban_disposable_income'] if is_urban 
-                              else self.STANDARDS['rural_disposable_income'])
-                years = max(20, 75 - victim_age)
+                base_income = self.STANDARDS['disposable_income']  # 统一使用城镇居民标准
+                income_type = "广西上一年度城镇居民人均可支配收入"
+                # 计算年限：根据年龄调整（60岁以上每增加一岁减少一年，75岁以上按5年）
+                years = self.calculate_compensation_years(victim_age)
                 death_compensation = base_income * years
                 results['死亡赔偿金'] = death_compensation
                 results['丧葬费'] = self.STANDARDS['funeral_expense']
+                year_desc = f"{years}年" if victim_age < 60 else (f"{years}年（60周岁以上每增加一岁减少一年）" if victim_age < 75 else f"{years}年（75周岁以上按5年计算）")
+                self.calculation_details['死亡赔偿金'] = f"{income_type}：{base_income:,.2f}元/年\n赔偿年限：{year_desc}\n死亡赔偿金 = {income_type} × 赔偿年限 = {base_income:,.2f} × {years} = {death_compensation:,.2f}元"
+                self.calculation_details['丧葬费'] = f"丧葬费 = {self.STANDARDS['funeral_expense']:,.2f}元"
             else:
                 results['死亡赔偿金'] = 0
                 results['丧葬费'] = 0
             
-            # 精神损害抚慰金
+            # 12. 精神损害抚慰金
             mental_damage = self.get_float_value(self.mental_damage)
             results['精神损害抚慰金'] = mental_damage
+            if mental_damage > 0:
+                self.calculation_details['精神损害抚慰金'] = f"精神损害抚慰金 = {mental_damage:,.2f}元"
             
             # 计算总计
             total = sum(results.values())
             results['总计'] = total
+            
+            # 生成总计的计算公式
+            valid_items = [item for item in ['医疗费', '误工费', '护理费', '交通费', '住宿费', '住院伙食补助费', 
+                          '营养费', '残疾赔偿金', '残疾辅助器具费', '被扶养人生活费', 
+                          '死亡赔偿金', '丧葬费', '精神损害抚慰金']
+                          if item in results and results[item] > 0]
+            total_formula = " + ".join([f"{results[item]:,.2f}" for item in valid_items])
+            self.calculation_details['总计'] = f"总计 = {total_formula} = {total:,.2f}元"
             
             # 保存结果
             self.calculation_results = results
@@ -331,6 +574,8 @@ class GuangxiCompensationCalculator:
             
         except Exception as e:
             messagebox.showerror("错误", f"计算过程中出现错误：{str(e)}")
+            import traceback
+            traceback.print_exc()
     
     def display_results(self, results, name, age, victim_type):
         """显示计算结果"""
@@ -347,9 +592,14 @@ class GuangxiCompensationCalculator:
         output += f"各项赔偿明细：\n"
         output += f"{'-'*50}\n\n"
         
-        for item, amount in results.items():
-            if item != '总计':
-                output += f"{item:20s}：{amount:>15,.2f} 元\n"
+        # 按顺序显示各项赔偿
+        items_order = ['医疗费', '误工费', '护理费', '交通费', '住宿费', '住院伙食补助费', 
+                      '营养费', '残疾赔偿金', '残疾辅助器具费', '被扶养人生活费', 
+                      '死亡赔偿金', '丧葬费', '精神损害抚慰金']
+        
+        for item in items_order:
+            if item in results and results[item] > 0:
+                output += f"{item:20s}：{results[item]:>15,.2f} 元\n"
         
         output += f"\n{'-'*50}\n"
         output += f"{'总计':20s}：{results['总计']:>15,.2f} 元\n"
@@ -377,70 +627,280 @@ class GuangxiCompensationCalculator:
             # 创建Word文档
             doc = Document()
             
-            # 设置文档样式
+            # 设置文档默认样式
             style = doc.styles['Normal']
             font = style.font
             font.name = '宋体'
             font.size = Pt(12)
+            font._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+            
+            # 设置页面边距
+            sections = doc.sections
+            for section in sections:
+                section.top_margin = Inches(1)
+                section.bottom_margin = Inches(1)
+                section.left_margin = Inches(1.25)
+                section.right_margin = Inches(1.25)
+            
+            # 设置标题样式
+            heading1 = doc.styles['Heading 1']
+            heading1_font = heading1.font
+            heading1_font.name = '黑体'
+            heading1_font.size = Pt(16)
+            heading1_font.bold = True
+            heading1_font._element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
+            
+            heading2 = doc.styles['Heading 2']
+            heading2_font = heading2.font
+            heading2_font.name = '黑体'
+            heading2_font.size = Pt(14)
+            heading2_font.bold = True
+            heading2_font._element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
+            
+            # 添加页脚（页码）- 使用标准方法
+            section = doc.sections[0]
+            footer = section.footer
+            footer_para = footer.paragraphs[0]
+            footer_para.clear()
+            footer_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            
+            # 创建包含页码字段的段落
+            p = footer_para._element
+            p_r = OxmlElement('w:pPr')
+            p.append(p_r)
+            
+            # 创建run
+            r = OxmlElement('w:r')
+            p.append(r)
+            
+            # 添加"第"字
+            t = OxmlElement('w:t')
+            t.text = '第 '
+            r.append(t)
+            
+            # 添加页码字段开始标记
+            fldChar1 = OxmlElement('w:fldChar')
+            fldChar1.set(qn('w:fldCharType'), 'begin')
+            r.append(fldChar1)
+            
+            # 添加字段指令
+            instrText = OxmlElement('w:instrText')
+            instrText.set(qn('xml:space'), 'preserve')
+            instrText.text = 'PAGE'
+            r.append(instrText)
+            
+            # 添加页码字段结束标记
+            fldChar2 = OxmlElement('w:fldChar')
+            fldChar2.set(qn('w:fldCharType'), 'end')
+            r.append(fldChar2)
+            
+            # 添加"页"字
+            r2 = OxmlElement('w:r')
+            p.append(r2)
+            t2 = OxmlElement('w:t')
+            t2.text = ' 页'
+            r2.append(t2)
+            
+            # 设置字体
+            for r_elem in p.findall(qn('w:r')):
+                rPr = OxmlElement('w:rPr')
+                r_elem.insert(0, rPr)
+                font = OxmlElement('w:rFonts')
+                font.set(qn('w:ascii'), '宋体')
+                font.set(qn('w:eastAsia'), '宋体')
+                font.set(qn('w:hAnsi'), '宋体')
+                rPr.append(font)
+                sz = OxmlElement('w:sz')
+                sz.set(qn('w:val'), '20')  # 10pt = 20 half-points
+                rPr.append(sz)
             
             # 标题
             title = doc.add_heading('广西人身损害赔偿计算结果', 0)
             title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            title_run = title.runs[0]
+            title_run.font.name = '黑体'
+            title_run.font.size = Pt(18)
+            title_run.font.bold = True
+            title_run._element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
             
-            # 基本信息
+            doc.add_paragraph()  # 空行
+            
+            # 基本信息表格
             doc.add_heading('一、基本信息', level=1)
             victim_name = self.victim_name.get().strip() or "未填写"
             victim_age = self.get_int_value(self.victim_age, 0)
             victim_type = self.victim_type.get()
+            accident_date = self.accident_date.get().strip() or "未填写"
             
-            p = doc.add_paragraph()
-            p.add_run('受害人姓名：').bold = True
-            p.add_run(victim_name)
+            basic_table = doc.add_table(rows=4, cols=2)
+            basic_table.style = 'Light Grid Accent 1'
             
-            p = doc.add_paragraph()
-            p.add_run('受害人年龄：').bold = True
-            p.add_run(f"{victim_age}岁")
+            # 设置表格列宽
+            basic_table.columns[0].width = Inches(2.0)
+            basic_table.columns[1].width = Inches(4.5)
             
-            p = doc.add_paragraph()
-            p.add_run('户籍类型：').bold = True
-            p.add_run(victim_type)
+            basic_info = [
+                ('受害人姓名', victim_name),
+                ('受害人年龄', f"{victim_age}岁"),
+                ('户籍类型', victim_type),
+                ('事故发生日期', accident_date),
+            ]
             
-            p = doc.add_paragraph()
-            p.add_run('计算日期：').bold = True
-            p.add_run(datetime.now().strftime('%Y年%m月%d日 %H:%M:%S'))
+            for i, (label, value) in enumerate(basic_info):
+                # 设置标签单元格
+                label_cell = basic_table.rows[i].cells[0]
+                label_cell.text = label
+                label_para = label_cell.paragraphs[0]
+                label_para.runs[0].bold = True
+                label_para.runs[0].font.name = '宋体'
+                label_para.runs[0].font.size = Pt(12)
+                label_para.runs[0]._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+                label_para.alignment = WD_ALIGN_PARAGRAPH.LEFT
+                
+                # 设置值单元格
+                value_cell = basic_table.rows[i].cells[1]
+                value_cell.text = value
+                value_para = value_cell.paragraphs[0]
+                value_para.runs[0].font.name = '宋体'
+                value_para.runs[0].font.size = Pt(12)
+                value_para.runs[0]._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
             
-            # 赔偿明细
-            doc.add_heading('二、赔偿明细', level=1)
+            doc.add_paragraph()  # 空行
             
-            table = doc.add_table(rows=len(self.calculation_results), cols=2)
-            table.style = 'Light Grid Accent 1'
+            # 赔偿明细表格
+            doc.add_heading('二、赔偿明细及计算公式', level=1)
             
-            row_idx = 0
-            for item, amount in self.calculation_results.items():
-                if item == '总计':
-                    continue
-                table.rows[row_idx].cells[0].text = item
-                table.rows[row_idx].cells[1].text = f"{amount:,.2f} 元"
-                row_idx += 1
+            # 按顺序显示各项赔偿
+            items_order = ['医疗费', '误工费', '护理费', '交通费', '住宿费', '住院伙食补助费', 
+                          '营养费', '残疾赔偿金', '残疾辅助器具费', '被扶养人生活费', 
+                          '死亡赔偿金', '丧葬费', '精神损害抚慰金']
             
-            # 总计
-            doc.add_paragraph()
-            p = doc.add_paragraph()
-            p.add_run('总计：').bold = True
-            p.add_run(f"{self.calculation_results['总计']:,.2f} 元").bold = True
-            p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+            # 计算有效项目
+            valid_items = [item for item in items_order 
+                          if item in self.calculation_results and self.calculation_results[item] > 0]
+            
+            if valid_items:
+                # 创建赔偿明细表格：序号、项目名称、金额、计算公式
+                detail_table = doc.add_table(rows=len(valid_items), cols=4)
+                detail_table.style = 'Light Grid Accent 1'
+                
+                # 设置表格列宽
+                detail_table.columns[0].width = Inches(0.6)  # 序号
+                detail_table.columns[1].width = Inches(1.8)  # 项目名称
+                detail_table.columns[2].width = Inches(1.5)  # 金额
+                detail_table.columns[3].width = Inches(4.1)  # 计算公式
+                
+                # 表头
+                header_cells = detail_table.rows[0].cells
+                header_cells[0].text = '序号'
+                header_cells[1].text = '赔偿项目'
+                header_cells[2].text = '金额（元）'
+                header_cells[3].text = '计算公式'
+                
+                # 设置表头格式
+                for cell in header_cells:
+                    for paragraph in cell.paragraphs:
+                        for run in paragraph.runs:
+                            run.bold = True
+                        paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                
+                # 填充数据
+                for idx, item in enumerate(valid_items):
+                    row = detail_table.rows[idx]
+                    
+                    # 序号列
+                    cell0 = row.cells[0]
+                    cell0.text = str(idx + 1)
+                    para0 = cell0.paragraphs[0]
+                    para0.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    para0.runs[0].font.name = '宋体'
+                    para0.runs[0].font.size = Pt(11)
+                    para0.runs[0]._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+                    
+                    # 项目名称列
+                    cell1 = row.cells[1]
+                    cell1.text = item
+                    para1 = cell1.paragraphs[0]
+                    para1.runs[0].font.name = '宋体'
+                    para1.runs[0].font.size = Pt(11)
+                    para1.runs[0]._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+                    
+                    # 金额列
+                    cell2 = row.cells[2]
+                    cell2.text = f"{self.calculation_results[item]:,.2f}"
+                    para2 = cell2.paragraphs[0]
+                    para2.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+                    para2.runs[0].font.name = '宋体'
+                    para2.runs[0].font.size = Pt(11)
+                    para2.runs[0]._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+                    
+                    # 计算公式列
+                    cell3 = row.cells[3]
+                    if item in self.calculation_details:
+                        detail = self.calculation_details[item]
+                        # 将计算公式分行显示，用分号分隔
+                        formula_text = detail.replace('\n', '；')
+                        cell3.text = formula_text
+                    else:
+                        cell3.text = f"{item} = {self.calculation_results[item]:,.2f} 元"
+                    para3 = cell3.paragraphs[0]
+                    para3.runs[0].font.name = '宋体'
+                    para3.runs[0].font.size = Pt(10)
+                    para3.runs[0]._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+                
+                doc.add_paragraph()  # 空行
+            
+            # 总计表格
+            doc.add_heading('三、赔偿总额', level=1)
+            total_table = doc.add_table(rows=2, cols=2)
+            total_table.style = 'Light Grid Accent 1'
+            
+            # 设置列宽
+            total_table.columns[0].width = Inches(2.0)
+            total_table.columns[1].width = Inches(5.0)
+            
+            # 表头
+            total_table.rows[0].cells[0].text = '项目'
+            total_table.rows[0].cells[1].text = '金额（元）'
+            for cell in total_table.rows[0].cells:
+                for paragraph in cell.paragraphs:
+                    for run in paragraph.runs:
+                        run.bold = True
+                    paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            
+            # 总计行
+            total_table.rows[1].cells[0].text = '赔偿总额'
+            total_table.rows[1].cells[0].paragraphs[0].runs[0].bold = True
+            total_table.rows[1].cells[1].text = f"{self.calculation_results['总计']:,.2f}"
+            total_table.rows[1].cells[1].paragraphs[0].runs[0].bold = True
+            total_table.rows[1].cells[1].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.RIGHT
+            
+            # 添加总计的计算公式
+            if '总计' in self.calculation_details:
+                doc.add_paragraph()
+                p = doc.add_paragraph()
+                p.add_run('计算公式：').bold = True
+                doc.add_paragraph(self.calculation_details['总计'])
             
             # 计算依据
-            doc.add_heading('三、计算依据', level=1)
-            doc.add_paragraph('本计算依据《中华人民共和国民法典》及相关司法解释，')
-            doc.add_paragraph('参考《2025年广西壮族自治区道路交通事故人身损害赔偿项目计算标准》')
-            doc.add_paragraph('进行计算。')
+            doc.add_heading('四、计算依据', level=1)
+            doc.add_paragraph('本计算依据以下法律法规及标准文件：')
+            
+            # 使用有序列表
+            
+            p1 = doc.add_paragraph('《广西壮族自治区道路交通事故损害赔偿项目及计算标准》（桂高法会〔2025〕13号）', style='List Number')
+            p2 = doc.add_paragraph('《广西壮族自治区公安厅关于道路交通事故处理有关问题的通知》（桂公通〔2025〕60号）', style='List Number')
+            
+            doc.add_paragraph()
+            doc.add_paragraph('注：2025年标准统一使用广西上一年度城镇居民人均可支配收入和城镇居民人均消费支出标准进行计算。')
             
             # 备注
-            doc.add_heading('四、备注', level=1)
+            doc.add_heading('五、备注', level=1)
             doc.add_paragraph('1. 本计算结果仅供参考，实际赔偿金额以法院判决为准。')
             doc.add_paragraph('2. 各项费用需提供相应的票据和证明材料。')
-            doc.add_paragraph('3. 如对计算结果有疑问，请咨询专业律师。')
+            doc.add_paragraph('3. 误工费、护理费的计算方式已根据收入类型进行区分。')
+            doc.add_paragraph('4. 被扶养人生活费的计算已考虑年赔偿总额限制。')
+            doc.add_paragraph('5. 如对计算结果有疑问，请咨询广西瀛桂律师事务所唐学智律师，联系电话18078374299。')
             
             # 保存文档
             doc.save(filename)
@@ -448,6 +908,8 @@ class GuangxiCompensationCalculator:
             
         except Exception as e:
             messagebox.showerror("错误", f"导出Word文档时出现错误：{str(e)}")
+            import traceback
+            traceback.print_exc()
     
     def clear_all(self):
         """清空所有数据"""
@@ -458,6 +920,7 @@ class GuangxiCompensationCalculator:
             
             self.result_text.delete(1.0, tk.END)
             self.calculation_results = {}
+            self.calculation_details = {}
             messagebox.showinfo("提示", "数据已清空！")
     
     def _clear_widget(self, widget):
@@ -465,7 +928,10 @@ class GuangxiCompensationCalculator:
         if isinstance(widget, tk.Entry):
             widget.delete(0, tk.END)
         elif isinstance(widget, ttk.Combobox):
-            widget.set('')
+            # 重置为第一个选项
+            values = widget['values']
+            if values:
+                widget.set(values[0])
         elif isinstance(widget, tk.Checkbutton):
             widget.deselect()
         elif hasattr(widget, 'winfo_children'):
@@ -482,4 +948,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

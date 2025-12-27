@@ -8,7 +8,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from datetime import datetime
-from tkcalendar import DateEntry
 from docx import Document
 from docx.shared import Pt, Inches, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -201,7 +200,8 @@ class GuangxiCompensationCalculator:
         self.victim_age = self.create_entry(basic_frame, "受害人年龄：", 1)
         self.victim_type = self.create_combobox(basic_frame, "户籍类型：", 
                                                  ["城镇", "农村"], 2)
-        self.accident_date = self.create_date_entry(basic_frame, "事故发生日期：", 3)
+        self.accident_date_year, self.accident_date_month, self.accident_date_day = \
+            self.create_date_selectors(basic_frame, "事故发生日期：", 3)
         
         # 医疗相关费用框架
         medical_frame = ttk.LabelFrame(scrollable_frame, text="🏥 医疗相关费用", padding=12)
@@ -218,7 +218,7 @@ class GuangxiCompensationCalculator:
         work_frame = ttk.LabelFrame(scrollable_frame, text="💼 误工费", padding=12)
         work_frame.pack(fill="x", padx=15, pady=8)
         
-        self.work_income_type = self.create_combobox(work_frame, "收入类型：", 
+        self.work_income_type = self.create_combobox(work_frame, "收入类型", 
                                                      ["固定收入", "无固定收入（能证明最近三年平均）", "无固定收入（不能证明，参照行业平均）"], 0)
         # 绑定收入类型变化事件，显示/隐藏相关字段
         self.work_income_type.bind("<<ComboboxSelected>>", self.on_income_type_changed)
@@ -384,8 +384,8 @@ class GuangxiCompensationCalculator:
             combobox.set(values[0])
         return combobox
     
-    def create_date_entry(self, parent, label_text, row):
-        """创建日期选择器"""
+    def create_date_selectors(self, parent, label_text, row):
+        """创建日期选择器（年、月、日三个下拉框）"""
         label = tk.Label(parent, text=label_text, font=("Microsoft YaHei", 9))
         label.grid(row=row, column=0, sticky="w", padx=8, pady=6)
         
@@ -393,53 +393,79 @@ class GuangxiCompensationCalculator:
         date_frame = tk.Frame(parent)
         date_frame.grid(row=row, column=1, padx=8, pady=6, sticky="w")
         
-        # 检测系统平台，Mac系统使用不同的配置
-        import platform
-        is_mac = platform.system() == "Darwin"
+        # 获取当前日期
+        now = datetime.now()
+        current_year = now.year
+        current_month = now.month
+        current_day = now.day
         
-        # 创建日期选择器，Mac系统使用默认样式避免黑屏问题
-        try:
-            if is_mac:
-                # Mac系统：使用最简配置，避免显示问题
-                date_entry = DateEntry(date_frame, width=18,
-                                      date_pattern='yyyy-mm-dd',
-                                      font=("Arial", 10),
-                                      selectmode='day',
-                                      year=datetime.now().year,
-                                      month=datetime.now().month,
-                                      day=datetime.now().day,
-                                      firstweekday='sunday')
-            else:
-                # 其他系统：使用自定义样式
-                date_entry = DateEntry(date_frame, width=18, 
-                                      background='#3498db',
-                                      foreground='white', 
-                                      borderwidth=2,
-                                      date_pattern='yyyy-mm-dd',
-                                      font=("Microsoft YaHei", 10),
-                                      locale='zh_CN',
-                                      selectmode='day',
-                                      year=datetime.now().year,
-                                      month=datetime.now().month,
-                                      day=datetime.now().day)
-        except Exception as e:
-            # 如果出现错误，使用最基本的配置
-            date_entry = DateEntry(date_frame, width=18,
-                                  date_pattern='yyyy-mm-dd',
-                                  selectmode='day',
-                                  year=datetime.now().year,
-                                  month=datetime.now().month,
-                                  day=datetime.now().day)
-        date_entry.pack(side="left")
+        # 生成年份列表（当前年份往前10年，往后2年）
+        years = [str(y) for y in range(current_year - 10, current_year + 3)]
+        # 生成月份列表
+        months = [f"{m:02d}" for m in range(1, 13)]
+        # 生成日期列表（默认31天，会根据月份动态调整）
+        days = [f"{d:02d}" for d in range(1, 32)]
         
-        # 添加一个提示标签
-        hint_label = tk.Label(date_frame, text="📅 点击选择日期", 
-                             font=("Microsoft YaHei", 8), fg="#7f8c8d")
-        hint_label.pack(side="left", padx=(8, 0))
+        # 创建年份下拉框
+        year_label = tk.Label(date_frame, text="年", font=("Microsoft YaHei", 9))
+        year_label.pack(side="left", padx=(0, 2))
+        year_combo = ttk.Combobox(date_frame, values=years, width=6, 
+                                 state="readonly", font=("Microsoft YaHei", 9))
+        year_combo.set(str(current_year))
+        year_combo.pack(side="left", padx=2)
         
-        # 返回日期选择器对象，以便后续获取日期
-        date_entry.get_date_str = lambda: date_entry.get_date().strftime('%Y-%m-%d')
-        return date_entry
+        # 创建月份下拉框
+        month_label = tk.Label(date_frame, text="月", font=("Microsoft YaHei", 9))
+        month_label.pack(side="left", padx=(0, 2))
+        month_combo = ttk.Combobox(date_frame, values=months, width=4, 
+                                  state="readonly", font=("Microsoft YaHei", 9))
+        month_combo.set(f"{current_month:02d}")
+        month_combo.pack(side="left", padx=2)
+        
+        # 创建日期下拉框
+        day_label = tk.Label(date_frame, text="日", font=("Microsoft YaHei", 9))
+        day_label.pack(side="left", padx=(0, 2))
+        day_combo = ttk.Combobox(date_frame, values=days, width=4, 
+                                state="readonly", font=("Microsoft YaHei", 9))
+        day_combo.set(f"{current_day:02d}")
+        day_combo.pack(side="left", padx=2)
+        
+        # 更新日期列表的函数（根据年月调整天数）
+        def update_days(*args):
+            try:
+                year = int(year_combo.get())
+                month = int(month_combo.get())
+                # 计算该月的天数
+                if month in [1, 3, 5, 7, 8, 10, 12]:
+                    max_day = 31
+                elif month in [4, 6, 9, 11]:
+                    max_day = 30
+                else:  # 2月
+                    # 判断闰年
+                    if (year % 4 == 0 and year % 100 != 0) or (year % 400 == 0):
+                        max_day = 29
+                    else:
+                        max_day = 28
+                
+                # 更新日期列表
+                new_days = [f"{d:02d}" for d in range(1, max_day + 1)]
+                day_combo['values'] = new_days
+                
+                # 如果当前选择的日期超出范围，设置为该月最后一天
+                current_day_val = day_combo.get()
+                if not current_day_val or int(current_day_val) > max_day:
+                    day_combo.set(f"{max_day:02d}")
+            except:
+                pass
+        
+        # 绑定年月变化事件
+        year_combo.bind("<<ComboboxSelected>>", update_days)
+        month_combo.bind("<<ComboboxSelected>>", update_days)
+        
+        # 初始化日期列表
+        update_days()
+        
+        return year_combo, month_combo, day_combo
     
     def get_float_value(self, entry, default=0.0):
         """获取浮点数值"""
@@ -581,7 +607,7 @@ class GuangxiCompensationCalculator:
             industry_avg_salary = self.INDUSTRY_SALARIES.get(selected_industry, self.INDUSTRY_SALARIES['其他行业'])
             daily_avg_salary = industry_avg_salary / 365
             amount = daily_avg_salary * work_loss_days
-            detail = f"无固定收入（不能证明，参照行业平均）计算：\n选择行业：{selected_industry}\n行业平均工资：{industry_avg_salary:,.2f}元/年\n日均工资 = 年工资 ÷ 365 = {industry_avg_salary:,.2f} ÷ 365 = {daily_avg_salary:,.2f}元/天\n误工费 = 日均工资 × 误工天数 = {daily_avg_salary:,.2f} × {work_loss_days} = {amount:,.2f}元"
+            detail = f"无固定收入（不能证明，参照行业平均）计算\n选择行业：{selected_industry}\n行业平均工资：{industry_avg_salary:,.2f}元/年\n日均工资 = 年工资 ÷ 365 = {industry_avg_salary:,.2f} ÷ 365 = {daily_avg_salary:,.2f}元/天\n误工费 = 日均工资 × 误工天数 = {daily_avg_salary:,.2f} × {work_loss_days} = {amount:,.2f}元"
             return amount, detail
     
     def calculate_nursing_fee(self):
@@ -1024,14 +1050,16 @@ class GuangxiCompensationCalculator:
             victim_name = self.victim_name.get().strip() or "未填写"
             victim_age = self.get_int_value(self.victim_age, 0)
             victim_type = self.victim_type.get()
-            # 获取日期选择器的日期
-            if hasattr(self.accident_date, 'get_date_str'):
-                accident_date = self.accident_date.get_date_str()
-            elif hasattr(self.accident_date, 'get_date'):
-                accident_date = self.accident_date.get_date().strftime('%Y-%m-%d')
-            else:
-                accident_date = self.accident_date.get().strip() if hasattr(self.accident_date, 'get') else "未填写"
-            if not accident_date or accident_date == "":
+            # 获取日期（从三个下拉框获取）
+            try:
+                year = self.accident_date_year.get().strip()
+                month = self.accident_date_month.get().strip()
+                day = self.accident_date_day.get().strip()
+                if year and month and day:
+                    accident_date = f"{year}-{month}-{day}"
+                else:
+                    accident_date = "未填写"
+            except:
                 accident_date = "未填写"
             
             basic_table = doc.add_table(rows=4, cols=2)
@@ -1216,9 +1244,27 @@ class GuangxiCompensationCalculator:
     def clear_all(self):
         """清空所有数据"""
         if messagebox.askyesno("确认", "确定要清空所有数据吗？"):
+            # 先重置日期选择器为当前日期
+            try:
+                now = datetime.now()
+                self.accident_date_year.set(str(now.year))
+                self.accident_date_month.set(f"{now.month:02d}")
+                self.accident_date_day.set(f"{now.day:02d}")
+            except:
+                pass
+            
             # 清空所有输入框
             for widget in self.root.winfo_children():
                 self._clear_widget(widget)
+            
+            # 再次重置日期选择器（因为上面的清空可能会重置它）
+            try:
+                now = datetime.now()
+                self.accident_date_year.set(str(now.year))
+                self.accident_date_month.set(f"{now.month:02d}")
+                self.accident_date_day.set(f"{now.day:02d}")
+            except:
+                pass
             
             self.result_text.delete(1.0, tk.END)
             self.calculation_results = {}
@@ -1236,10 +1282,6 @@ class GuangxiCompensationCalculator:
                 widget.set(values[0])
         elif isinstance(widget, tk.Checkbutton):
             widget.deselect()
-        elif hasattr(widget, '__class__') and 'DateEntry' in str(widget.__class__):
-            # 清空日期选择器，设置为今天
-            from datetime import date
-            widget.set_date(date.today())
         elif hasattr(widget, 'winfo_children'):
             for child in widget.winfo_children():
                 self._clear_widget(child)

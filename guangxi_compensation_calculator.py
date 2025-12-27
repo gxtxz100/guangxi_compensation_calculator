@@ -73,7 +73,7 @@ class GuangxiCompensationCalculator:
     
     def __init__(self, root):
         self.root = root
-        self.root.title("广西瀛桂律师事务所 唐学智律师制作")
+        self.root.title("广西瀛桂律师事务所 唐学智律师制作 18078374299")
         self.root.geometry("900x1000")
         self.root.resizable(True, True)
         
@@ -256,19 +256,19 @@ class GuangxiCompensationCalculator:
         self.on_nursing_type_changed()
         
         # 残疾相关框架
-        disability_frame = ttk.LabelFrame(scrollable_frame, text="♿ 残疾赔偿", padding=12)
-        disability_frame.pack(fill="x", padx=15, pady=8)
+        self.disability_frame = ttk.LabelFrame(scrollable_frame, text="♿ 残疾赔偿", padding=12)
+        self.disability_frame.pack(fill="x", padx=15, pady=8)
         
-        self.disability_level = self.create_combobox(disability_frame, "伤残等级：", 
+        self.disability_level = self.create_combobox(self.disability_frame, "伤残等级：", 
                                                      ["无"] + [f"{i}级" for i in range(1, 11)], 0)
-        self.disability_appliance_fee = self.create_entry(disability_frame, "残疾辅助器具费（元）：", 1)
+        self.disability_appliance_fee = self.create_entry(self.disability_frame, "残疾辅助器具费（元）：", 1)
         
         # 被扶养人生活费框架
-        dependent_frame = ttk.LabelFrame(scrollable_frame, text="👨‍👩‍👧‍👦 被扶养人生活费", padding=12)
-        dependent_frame.pack(fill="x", padx=15, pady=8)
+        self.dependent_frame = ttk.LabelFrame(scrollable_frame, text="👨‍👩‍👧‍👦 被扶养人生活费", padding=12)
+        self.dependent_frame.pack(fill="x", padx=15, pady=8)
         
-        self.dependent_info = self.create_entry(dependent_frame, "被扶养人信息（格式：年龄1,扶养人数1;年龄2,扶养人数2，如：5,2;65,1）：", 0)
-        tk.Label(dependent_frame, text="说明：不满18岁按(18-年龄)年计算；18-60岁无劳动能力按20年；60-75岁按[20-(年龄-60)]年；75岁以上按5年", 
+        self.dependent_info = self.create_entry(self.dependent_frame, "被扶养人信息（格式：年龄1,扶养人数1;年龄2,扶养人数2，如：5,2;65,1）：", 0)
+        tk.Label(self.dependent_frame, text="说明：不满18岁按(18-年龄)年计算；18-60岁无劳动能力按20年；60-75岁按[20-(年龄-60)]年；75岁以上按5年", 
                 font=("Arial", 8), fg="gray").grid(row=1, column=0, columnspan=2, sticky="w", padx=5)
         
         # 死亡相关框架
@@ -276,7 +276,12 @@ class GuangxiCompensationCalculator:
         death_frame.pack(fill="x", padx=15, pady=8)
         
         self.is_death = tk.BooleanVar()
-        tk.Checkbutton(death_frame, text="是否死亡", variable=self.is_death).grid(row=0, column=0, sticky="w", padx=5, pady=5)
+        death_checkbutton = tk.Checkbutton(death_frame, text="是否死亡", variable=self.is_death,
+                                           command=self.on_death_changed)
+        death_checkbutton.grid(row=0, column=0, sticky="w", padx=5, pady=5)
+        
+        # 初始状态：如果死亡被选中，隐藏残疾赔偿
+        self.on_death_changed()
         
         # 精神损害抚慰金框架
         mental_frame = ttk.LabelFrame(scrollable_frame, text="💔 精神损害抚慰金", padding=12)
@@ -554,6 +559,21 @@ class GuangxiCompensationCalculator:
             if nursing_income_label:
                 nursing_income_label[0].grid_remove()
             self.nursing_income.grid_remove()
+    
+    def on_death_changed(self):
+        """当死亡复选框状态改变时，显示/隐藏残疾赔偿框架"""
+        if self.is_death.get():
+            # 如果选择了死亡赔偿，隐藏残疾赔偿框架
+            self.disability_frame.pack_forget()
+            # 同时重置残疾赔偿相关字段
+            if hasattr(self, 'disability_level'):
+                self.disability_level.set("无")
+            if hasattr(self, 'disability_appliance_fee'):
+                self.disability_appliance_fee.delete(0, tk.END)
+        else:
+            # 如果取消选择死亡赔偿，显示残疾赔偿框架
+            # 在护理费框架之后、被扶养人生活费框架之前显示
+            self.disability_frame.pack(fill="x", padx=15, pady=8, before=self.dependent_frame)
     
     def calculate_compensation_years(self, age):
         """
@@ -1110,73 +1130,174 @@ class GuangxiCompensationCalculator:
                           if item in self.calculation_results and self.calculation_results[item] > 0]
             
             if valid_items:
-                # 创建赔偿明细表格：序号、项目名称、金额、计算公式
-                detail_table = doc.add_table(rows=len(valid_items), cols=4)
+                # 创建赔偿明细表格：序号、项目、金额、计算方式
+                # 注意：rows需要包含表头，所以是len(valid_items) + 1
+                detail_table = doc.add_table(rows=len(valid_items) + 1, cols=4)
                 detail_table.style = 'Light Grid Accent 1'
                 
-                # 设置表格列宽
-                detail_table.columns[0].width = Inches(0.6)  # 序号
-                detail_table.columns[1].width = Inches(1.8)  # 项目名称
-                detail_table.columns[2].width = Inches(1.5)  # 金额
-                detail_table.columns[3].width = Inches(4.1)  # 计算公式
+                # 设置表格自动调整（根据内容）
+                tbl = detail_table._tbl
+                tblPr = tbl.tblPr
+                if tblPr is None:
+                    tblPr = OxmlElement('w:tblPr')
+                    tbl.insert(0, tblPr)
+                
+                # 设置表格宽度为100%（自动调整）
+                tblW = OxmlElement('w:tblW')
+                tblW.set(qn('w:w'), '0')
+                tblW.set(qn('w:type'), 'auto')
+                tblPr.append(tblW)
+                
+                # 设置表格布局为自动调整
+                tblLayout = OxmlElement('w:tblLayout')
+                tblLayout.set(qn('w:type'), 'autofit')
+                tblPr.append(tblLayout)
+                
+                # 设置表格列宽（前三列紧凑，最后一列宽松）
+                detail_table.columns[0].width = Inches(0.4)  # 序号列（最紧凑）
+                detail_table.columns[1].width = Inches(1.0)  # 项目列（紧凑，项目名称一般较短）
+                detail_table.columns[2].width = Inches(1.0)  # 金额列（紧凑，金额格式固定）
+                detail_table.columns[3].width = Inches(5.1)  # 计算方式列（宽松，容纳详细公式）
+                
+                # 设置单元格内边距（前三列紧凑，最后一列稍宽松）
+                for row_idx, row in enumerate(detail_table.rows):
+                    for col_idx, cell in enumerate(row.cells):
+                        tcPr = cell._element.tcPr
+                        if tcPr is None:
+                            tcPr = OxmlElement('w:tcPr')
+                            cell._element.insert(0, tcPr)
+                        
+                        # 前三列（序号、项目、金额）使用更小的内边距，最后一列（计算方式）使用稍大的内边距
+                        if col_idx < 3:
+                            # 前三列：紧凑内边距
+                            left_right = '80'  # 约4pt
+                            top_bottom = '50'  # 约2.5pt
+                        else:
+                            # 最后一列：稍宽松内边距
+                            left_right = '120'  # 约6pt
+                            top_bottom = '60'   # 约3pt
+                        
+                        tcMar = OxmlElement('w:tcMar')
+                        for margin_name, margin_value in [('top', top_bottom), ('left', left_right), 
+                                                          ('bottom', top_bottom), ('right', left_right)]:
+                            margin = OxmlElement(f'w:{margin_name}')
+                            margin.set(qn('w:w'), margin_value)
+                            margin.set(qn('w:type'), 'dxa')
+                            tcMar.append(margin)
+                        tcPr.append(tcMar)
                 
                 # 表头
                 header_cells = detail_table.rows[0].cells
-                header_cells[0].text = '序号'
-                header_cells[1].text = '赔偿项目'
-                header_cells[2].text = '金额（元）'
-                header_cells[3].text = '计算公式'
+                header_texts = ['序号', '项目', '金额', '计算方式']
                 
-                # 设置表头格式
-                for cell in header_cells:
-                    for paragraph in cell.paragraphs:
-                        for run in paragraph.runs:
-                            run.bold = True
-                        paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                # 设置表头格式（加粗、居中、统一字体）
+                for idx, cell in enumerate(header_cells):
+                    # 先保存文本
+                    header_text = header_texts[idx]
+                    
+                    # 清空单元格内容
+                    cell.paragraphs[0].clear()
+                    
+                    # 重新添加文本
+                    para = cell.paragraphs[0]
+                    run = para.add_run(header_text)
+                    run.bold = True
+                    run.font.name = '黑体'
+                    run.font.size = Pt(11)
+                    run._element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
+                    para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    
+                    # 设置单元格背景色（浅灰色）
+                    tcPr = cell._element.get_or_add_tcPr()
+                    shading_elm = OxmlElement('w:shd')
+                    shading_elm.set(qn('w:fill'), 'E7E6E6')
+                    shading_elm.set(qn('w:val'), 'clear')
+                    tcPr.append(shading_elm)
                 
-                # 填充数据
+                # 填充数据（注意：行索引从1开始，因为0是表头）
                 for idx, item in enumerate(valid_items):
-                    row = detail_table.rows[idx]
+                    row = detail_table.rows[idx + 1]  # 从第2行开始（索引1）
                     
                     # 序号列
                     cell0 = row.cells[0]
-                    cell0.text = str(idx + 1)
+                    cell0.paragraphs[0].clear()
                     para0 = cell0.paragraphs[0]
+                    run0 = para0.add_run(str(idx + 1))
+                    run0.font.name = '宋体'
+                    run0.font.size = Pt(10)
+                    run0._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
                     para0.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                    para0.runs[0].font.name = '宋体'
-                    para0.runs[0].font.size = Pt(11)
-                    para0.runs[0]._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
                     
                     # 项目名称列
                     cell1 = row.cells[1]
-                    cell1.text = item
+                    cell1.paragraphs[0].clear()
                     para1 = cell1.paragraphs[0]
-                    para1.runs[0].font.name = '宋体'
-                    para1.runs[0].font.size = Pt(11)
-                    para1.runs[0]._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+                    run1 = para1.add_run(item)
+                    run1.font.name = '宋体'
+                    run1.font.size = Pt(10)
+                    run1._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+                    para1.alignment = WD_ALIGN_PARAGRAPH.LEFT
                     
-                    # 金额列
+                    # 金额列（右对齐，千分位格式）
                     cell2 = row.cells[2]
-                    cell2.text = f"{self.calculation_results[item]:,.2f}"
+                    cell2.paragraphs[0].clear()
                     para2 = cell2.paragraphs[0]
+                    amount_text = f"{self.calculation_results[item]:,.2f}"
+                    run2 = para2.add_run(amount_text)
+                    run2.font.name = '宋体'
+                    run2.font.size = Pt(10)
+                    run2._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
                     para2.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-                    para2.runs[0].font.name = '宋体'
-                    para2.runs[0].font.size = Pt(11)
-                    para2.runs[0]._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
                     
-                    # 计算公式列
+                    # 计算方式列（支持多行显示）
                     cell3 = row.cells[3]
+                    cell3.paragraphs[0].clear()
+                    para3 = cell3.paragraphs[0]
+                    
                     if item in self.calculation_details:
                         detail = self.calculation_details[item]
-                        # 将计算公式分行显示，用分号分隔
-                        formula_text = detail.replace('\n', '；')
-                        cell3.text = formula_text
+                        # 如果包含换行符，分行显示
+                        if '\n' in detail:
+                            lines = detail.split('\n')
+                            for i, line in enumerate(lines):
+                                if i > 0:
+                                    para3 = cell3.add_paragraph()
+                                run3 = para3.add_run(line.strip())
+                                run3.font.name = '宋体'
+                                run3.font.size = Pt(9.5)
+                                run3._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+                        else:
+                            # 单行显示，将分号替换为换行
+                            formula_text = detail.replace('；', '\n').replace(';', '\n')
+                            if '\n' in formula_text:
+                                lines = formula_text.split('\n')
+                                for i, line in enumerate(lines):
+                                    if i > 0:
+                                        para3 = cell3.add_paragraph()
+                                    run3 = para3.add_run(line.strip())
+                                    run3.font.name = '宋体'
+                                    run3.font.size = Pt(9.5)
+                                    run3._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+                            else:
+                                run3 = para3.add_run(formula_text)
+                                run3.font.name = '宋体'
+                                run3.font.size = Pt(9.5)
+                                run3._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
                     else:
-                        cell3.text = f"{item} = {self.calculation_results[item]:,.2f} 元"
-                    para3 = cell3.paragraphs[0]
-                    para3.runs[0].font.name = '宋体'
-                    para3.runs[0].font.size = Pt(10)
-                    para3.runs[0]._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+                        run3 = para3.add_run(f"{item} = {self.calculation_results[item]:,.2f} 元")
+                        run3.font.name = '宋体'
+                        run3.font.size = Pt(9.5)
+                        run3._element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+                    
+                    para3.alignment = WD_ALIGN_PARAGRAPH.LEFT
+                    
+                    # 设置行高（紧凑但不过于拥挤）
+                    tr = row._element
+                    trPr = tr.get_or_add_trPr()
+                    trHeight = OxmlElement('w:trHeight')
+                    trHeight.set(qn('w:val'), '300')  # 约15pt的行高
+                    trHeight.set(qn('w:hRule'), 'atLeast')
+                    trPr.append(trHeight)
                 
                 doc.add_paragraph()  # 空行
             
@@ -1265,6 +1386,16 @@ class GuangxiCompensationCalculator:
                 self.accident_date_day.set(f"{now.day:02d}")
             except:
                 pass
+            
+            # 确保死亡复选框取消后，残疾赔偿框架重新显示
+            if hasattr(self, 'is_death') and not self.is_death.get():
+                if hasattr(self, 'disability_frame'):
+                    # 检查框架是否已隐藏
+                    try:
+                        self.disability_frame.pack_info()
+                    except:
+                        # 如果框架被隐藏了，重新显示
+                        self.disability_frame.pack(fill="x", padx=15, pady=8, before=self.dependent_frame)
             
             self.result_text.delete(1.0, tk.END)
             self.calculation_results = {}

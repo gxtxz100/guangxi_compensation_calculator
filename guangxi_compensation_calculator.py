@@ -213,6 +213,7 @@ class GuangxiCompensationCalculator:
         self.nutrition_fee = self.create_entry(medical_frame, "营养费（元）：", 3)
         self.traffic_fee = self.create_entry(medical_frame, "交通费（元）：", 4)
         self.accommodation_days = self.create_entry(medical_frame, "住宿天数：", 5)
+        self.follow_up_treatment_fee = self.create_entry(medical_frame, "后续治疗费（元）：", 6)
         
         # 误工费框架
         work_frame = ttk.LabelFrame(scrollable_frame, text="💼 误工费", padding=12)
@@ -803,7 +804,13 @@ class GuangxiCompensationCalculator:
             if medical_expense > 0:
                 self.calculation_details['医疗费'] = f"医疗费 = 诊疗费 + 医药费 + 住院费 = {medical_expense:,.2f}元"
             
-            # 2. 住院伙食补助费
+            # 2. 后续治疗费
+            follow_up_treatment_fee = self.get_float_value(self.follow_up_treatment_fee)
+            results['后续治疗费'] = follow_up_treatment_fee
+            if follow_up_treatment_fee > 0:
+                self.calculation_details['后续治疗费'] = f"后续治疗费 = {follow_up_treatment_fee:,.2f}元"
+            
+            # 3. 住院伙食补助费
             hospital_days = self.get_int_value(self.hospital_days)
             meal_subsidy_per_day = self.get_float_value(self.meal_subsidy, 
                                                        self.STANDARDS['daily_meal_subsidy'])
@@ -897,7 +904,7 @@ class GuangxiCompensationCalculator:
             results['总计'] = total
             
             # 生成总计的计算公式
-            valid_items = [item for item in ['医疗费', '误工费', '护理费', '交通费', '住宿费', '住院伙食补助费', 
+            valid_items = [item for item in ['医疗费', '后续治疗费', '误工费', '护理费', '交通费', '住宿费', '住院伙食补助费', 
                           '营养费', '残疾赔偿金', '残疾辅助器具费', '被扶养人生活费', 
                           '死亡赔偿金', '丧葬费', '精神损害抚慰金']
                           if item in results and results[item] > 0]
@@ -933,7 +940,7 @@ class GuangxiCompensationCalculator:
         output += f"{'-'*50}\n\n"
         
         # 按顺序显示各项赔偿
-        items_order = ['医疗费', '误工费', '护理费', '交通费', '住宿费', '住院伙食补助费', 
+        items_order = ['医疗费', '后续治疗费', '误工费', '护理费', '交通费', '住宿费', '住院伙食补助费', 
                       '营养费', '残疾赔偿金', '残疾辅助器具费', '被扶养人生活费', 
                       '死亡赔偿金', '丧葬费', '精神损害抚慰金']
         
@@ -954,11 +961,40 @@ class GuangxiCompensationCalculator:
             return
         
         try:
+            # 获取受害人姓名
+            victim_name = self.victim_name.get().strip() or "未填写"
+            # 如果姓名为"未填写"，使用默认名称
+            if victim_name == "未填写":
+                name_part = ""
+            else:
+                name_part = victim_name
+            
+            # 获取事故发生日期作为计算日期
+            try:
+                year = self.accident_date_year.get().strip()
+                month = self.accident_date_month.get().strip()
+                day = self.accident_date_day.get().strip()
+                if year and month and day:
+                    # 使用事故发生日期
+                    date_part = f"{year}{month}{day}"
+                else:
+                    # 如果没有填写日期，使用当前日期
+                    date_part = datetime.now().strftime('%Y%m%d')
+            except:
+                # 如果获取日期失败，使用当前日期
+                date_part = datetime.now().strftime('%Y%m%d')
+            
+            # 生成文件名：受害人姓名+赔偿计算结果+计算日期
+            if name_part:
+                initial_filename = f"{name_part}赔偿计算结果{date_part}.docx"
+            else:
+                initial_filename = f"赔偿计算结果{date_part}.docx"
+            
             # 选择保存位置
             filename = filedialog.asksaveasfilename(
                 defaultextension=".docx",
                 filetypes=[("Word文档", "*.docx"), ("所有文件", "*.*")],
-                initialfile=f"赔偿计算结果_{datetime.now().strftime('%Y%m%d_%H%M%S')}.docx"
+                initialfile=initial_filename
             )
             
             if not filename:
@@ -1121,7 +1157,7 @@ class GuangxiCompensationCalculator:
             doc.add_heading('二、赔偿明细及计算公式', level=1)
             
             # 按顺序显示各项赔偿
-            items_order = ['医疗费', '误工费', '护理费', '交通费', '住宿费', '住院伙食补助费', 
+            items_order = ['医疗费', '后续治疗费', '误工费', '护理费', '交通费', '住宿费', '住院伙食补助费', 
                           '营养费', '残疾赔偿金', '残疾辅助器具费', '被扶养人生活费', 
                           '死亡赔偿金', '丧葬费', '精神损害抚慰金']
             

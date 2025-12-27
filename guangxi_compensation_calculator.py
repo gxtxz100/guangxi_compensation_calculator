@@ -77,6 +77,10 @@ class GuangxiCompensationCalculator:
         self.root.geometry("900x1300")
         self.root.resizable(True, True)
         
+        # 配置ttk样式，设置Combobox文字颜色为深蓝色
+        style = ttk.Style()
+        style.configure("TCombobox", fieldbackground="white", foreground="#1565C0")
+        
         # 创建主框架
         self.create_widgets()
         
@@ -229,7 +233,8 @@ class GuangxiCompensationCalculator:
         self.industry_label = tk.Label(work_frame, text="行业类型：", font=("Microsoft YaHei", 8))
         self.industry_label.grid(row=3, column=0, sticky="w", padx=6, pady=2)
         self.industry_type = ttk.Combobox(work_frame, values=list(self.INDUSTRY_SALARIES.keys()), 
-                                          width=39, state="readonly", font=("Microsoft YaHei", 8))
+                                          width=39, state="readonly", font=("Microsoft YaHei", 8),
+                                          style="TCombobox")
         self.industry_type.grid(row=3, column=1, padx=6, pady=2)
         self.industry_type.set("其他行业")  # 默认值
         # 初始隐藏行业选择
@@ -261,7 +266,8 @@ class GuangxiCompensationCalculator:
         # 伤残等级输入（支持多处伤残，用逗号或分号分隔，如：5级,8级 或 3级;5级;9级）
         disability_label = tk.Label(self.disability_frame, text="伤残等级：", font=("Microsoft YaHei", 8))
         disability_label.grid(row=0, column=0, sticky="w", padx=6, pady=2)
-        self.disability_level = tk.Entry(self.disability_frame, width=40, font=("Microsoft YaHei", 8))
+        self.disability_level = tk.Entry(self.disability_frame, width=40, font=("Microsoft YaHei", 8),
+                                        bg="#ffffff", fg="#1565C0")
         self.disability_level.grid(row=0, column=1, padx=6, pady=2)
         self.disability_level.insert(0, "无")
         # 添加提示标签
@@ -370,7 +376,7 @@ class GuangxiCompensationCalculator:
         label = tk.Label(parent, text=label_text, font=("Microsoft YaHei", 8))
         label.grid(row=row, column=0, sticky="w", padx=6, pady=2)
         entry = tk.Entry(parent, width=42, font=("Microsoft YaHei", 8),
-                         relief="solid", borderwidth=1, bg="#ffffff")
+                         relief="solid", borderwidth=1, bg="#ffffff", fg="#1565C0")
         entry.grid(row=row, column=1, padx=6, pady=2)
         return entry
     
@@ -379,7 +385,7 @@ class GuangxiCompensationCalculator:
         label = tk.Label(parent, text=label_text, font=("Microsoft YaHei", 8))
         label.grid(row=row, column=0, sticky="w", padx=6, pady=2)
         combobox = ttk.Combobox(parent, values=values, width=39, state="readonly",
-                               font=("Microsoft YaHei", 8))
+                               font=("Microsoft YaHei", 8), style="TCombobox")
         combobox.grid(row=row, column=1, padx=6, pady=2)
         if values:
             combobox.set(values[0])
@@ -411,7 +417,8 @@ class GuangxiCompensationCalculator:
         year_label = tk.Label(date_frame, text="年", font=("Microsoft YaHei", 8))
         year_label.pack(side="left", padx=(0, 1))
         year_combo = ttk.Combobox(date_frame, values=years, width=6, 
-                                 state="readonly", font=("Microsoft YaHei", 8))
+                                 state="readonly", font=("Microsoft YaHei", 8),
+                                 style="TCombobox")
         year_combo.set(str(current_year))
         year_combo.pack(side="left", padx=1)
         
@@ -419,7 +426,8 @@ class GuangxiCompensationCalculator:
         month_label = tk.Label(date_frame, text="月", font=("Microsoft YaHei", 8))
         month_label.pack(side="left", padx=(0, 1))
         month_combo = ttk.Combobox(date_frame, values=months, width=4, 
-                                  state="readonly", font=("Microsoft YaHei", 8))
+                                  state="readonly", font=("Microsoft YaHei", 8),
+                                  style="TCombobox")
         month_combo.set(f"{current_month:02d}")
         month_combo.pack(side="left", padx=1)
         
@@ -427,7 +435,8 @@ class GuangxiCompensationCalculator:
         day_label = tk.Label(date_frame, text="日", font=("Microsoft YaHei", 8))
         day_label.pack(side="left", padx=(0, 1))
         day_combo = ttk.Combobox(date_frame, values=days, width=4, 
-                                state="readonly", font=("Microsoft YaHei", 8))
+                                state="readonly", font=("Microsoft YaHei", 8),
+                                style="TCombobox")
         day_combo.set(f"{current_day:02d}")
         day_combo.pack(side="left", padx=1)
         
@@ -559,12 +568,14 @@ class GuangxiCompensationCalculator:
     def calculate_multi_disability_coefficient(self, disability_levels_str):
         """
         计算多处伤残的伤残系数
-        根据《道路交通事故受伤人员伤残评定》标准：
+        根据《道路交通事故受伤人员伤残评定》（GB18667-2002）附录B及桂高法会〔2025〕13号文件规定：
         1. 最高伤残等级系数：取所有伤残等级中最高的一个
-        2. 附加指数：
-           - 2-5级伤残：每处附加指数为4%
-           - 6-10级伤残：每处附加指数为2%
-           - 附加指数总和不超过10%
+        2. 附加指数计算：
+           - 根据GB18667-2002标准，附加指数通常取该伤残等级对应赔偿指数的10%至15%
+           - 为便于计算，采用以下标准：
+             * 2-5级伤残：每处附加指数为该等级赔偿指数的10%（即4%、3.5%、2.8%、2.1%）
+             * 6-10级伤残：每处附加指数为该等级赔偿指数的10%（即2%、1.5%、1.2%、0.9%、0.5%）
+           - 所有附加指数之和不超过10%
         3. 最终伤残系数 = 最高伤残等级系数 + 附加指数（但不超过100%）
         
         参数：
@@ -597,36 +608,105 @@ class GuangxiCompensationCalculator:
         if not disability_levels:
             return 1.0, None, 0.0, "无有效伤残等级，系数为1.0"
         
-        # 去重并排序（从高到低）
-        disability_levels = sorted(set(disability_levels))
+        # 统计每个伤残等级出现的次数（不去重，保留所有伤残等级）
+        from collections import Counter
+        level_counts = Counter(disability_levels)
         
-        # 获取最高伤残等级
-        max_level = disability_levels[0]  # 最高等级（数字最小）
+        # 获取最高伤残等级（数字最小）
+        sorted_levels = sorted(level_counts.keys())
+        max_level = sorted_levels[0]
         max_coefficient = self.DISABILITY_COEFFICIENTS.get(max_level, 1.0)
         
-        # 计算附加指数（排除最高等级）
-        additional_levels = disability_levels[1:] if len(disability_levels) > 1 else []
+        # 如果最高等级是1级，系数已经是100%，不需要附加指数
+        if max_level == 1:
+            # 构建显示用的等级列表（包含重复）
+            display_levels = []
+            for level, count in sorted(level_counts.items()):
+                if count == 1:
+                    display_levels.append(f"{level}级")
+                else:
+                    display_levels.append(f"{level}级×{count}")
+            detail_parts = [f"伤残等级：{', '.join(display_levels)}\n"]
+            detail_parts.append(f"最高伤残等级：1级，系数：1.00（100%）\n")
+            detail_parts.append("1级伤残系数为100%，无需附加指数\n")
+            detail_parts.append("最终伤残系数 = 1.00（100%）")
+            detail = "".join(detail_parts)
+            return 1.0, 1, 0.0, detail
+        
+        # 计算附加指数（排除最高等级，同时排除1级，因为1级已经是100%）
+        # 对于相同的伤残等级，每处都计算附加指数
         additional_index = 0.0
         
-        detail_parts = [f"伤残等级：{', '.join([f'{l}级' for l in disability_levels])}\n"]
+        # 构建显示用的等级列表（包含重复）
+        display_levels = []
+        for level, count in sorted(level_counts.items()):
+            if count == 1:
+                display_levels.append(f"{level}级")
+            else:
+                display_levels.append(f"{level}级×{count}")
+        
+        detail_parts = [f"伤残等级：{', '.join(display_levels)}\n"]
         detail_parts.append(f"最高伤残等级：{max_level}级，系数：{max_coefficient:.2f}\n")
         
-        if additional_levels:
+        # 统计附加伤残等级（排除最高等级和1级）
+        # 使用字典统计每个附加等级的附加指数总和
+        additional_level_info = {}
+        for level in sorted_levels:
+            if level == max_level:
+                # 最高等级的数量减1（如果有多个最高等级，多余的作为附加等级）
+                count = level_counts[level] - 1
+                if count > 0:
+                    level_coefficient = self.DISABILITY_COEFFICIENTS.get(level, 0)
+                    level_additional = level_coefficient * 0.10
+                    total_additional = level_additional * count
+                    additional_index += total_additional
+                    if count == 1:
+                        additional_level_info[level] = {
+                            'count': 1,
+                            'coefficient': level_coefficient,
+                            'additional_per_unit': level_additional,
+                            'total_additional': total_additional
+                        }
+                    else:
+                        additional_level_info[level] = {
+                            'count': count,
+                            'coefficient': level_coefficient,
+                            'additional_per_unit': level_additional,
+                            'total_additional': total_additional
+                        }
+            elif level != 1:  # 排除1级
+                # 其他等级全部作为附加等级
+                count = level_counts[level]
+                level_coefficient = self.DISABILITY_COEFFICIENTS.get(level, 0)
+                level_additional = level_coefficient * 0.10
+                total_additional = level_additional * count
+                additional_index += total_additional
+                additional_level_info[level] = {
+                    'count': count,
+                    'coefficient': level_coefficient,
+                    'additional_per_unit': level_additional,
+                    'total_additional': total_additional
+                }
+        
+        if additional_level_info:
             detail_parts.append("附加伤残等级：")
-            for idx, level in enumerate(additional_levels):
-                if idx > 0:
-                    detail_parts.append("、")
-                if 2 <= level <= 5:
-                    additional_index += 0.04  # 4%
-                    detail_parts.append(f"{level}级（附加4%）")
-                elif 6 <= level <= 10:
-                    additional_index += 0.02  # 2%
-                    detail_parts.append(f"{level}级（附加2%）")
-                # 注意：1级伤残不应作为附加等级，因为1级已经是100%
+            info_list = []
+            for level in sorted(additional_level_info.keys()):
+                info = additional_level_info[level]
+                if info['count'] == 1:
+                    info_list.append(f"{level}级（赔偿系数{info['coefficient']:.2f}，附加{info['additional_per_unit']*100:.2f}%）")
+                else:
+                    info_list.append(f"{level}级×{info['count']}（赔偿系数{info['coefficient']:.2f}，每处附加{info['additional_per_unit']*100:.2f}%，合计{info['total_additional']*100:.2f}%）")
+            detail_parts.append("、".join(info_list))
             
-            # 附加指数总和不超过10%
+            # 附加指数总和不超过10%（根据GB18667-2002标准）
+            original_additional_index = additional_index
             additional_index = min(additional_index, 0.10)
-            detail_parts.append(f"\n附加指数合计：{additional_index * 100:.2f}%\n")
+            
+            if original_additional_index > 0.10:
+                detail_parts.append(f"\n附加指数合计：{original_additional_index * 100:.2f}%，超过10%上限，按10%计算\n")
+            else:
+                detail_parts.append(f"\n附加指数合计：{additional_index * 100:.2f}%\n")
         else:
             detail_parts.append("无附加伤残等级\n")
         

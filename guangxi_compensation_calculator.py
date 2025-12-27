@@ -177,35 +177,33 @@ class GuangxiCompensationCalculator:
         self.canvas = canvas
         self.scrollable_frame = scrollable_frame
         
-        # 标题区域 - 使用更美观的样式
-        title_frame = tk.Frame(scrollable_frame, bg="#2c3e50", height=60)
+        # 标题区域 - 紧凑设计
+        title_frame = tk.Frame(scrollable_frame, bg="#2c3e50", height=45)
         title_frame.pack(fill="x", padx=0, pady=0)
         title_label = tk.Label(title_frame, text="广西人身损害赔偿计算器", 
-                               font=("Microsoft YaHei", 18, "bold"),
+                               font=("Microsoft YaHei", 16, "bold"),
                                bg="#2c3e50", fg="white")
-        title_label.pack(pady=15)
+        title_label.pack(pady=8)
         
         # 副标题
         subtitle_label = tk.Label(title_frame, 
                                  text="根据（桂高法会〔2025〕13号），（桂公通〔2025〕60号）",
-                                 font=("Microsoft YaHei", 9),
+                                 font=("Microsoft YaHei", 8),
                                  bg="#2c3e50", fg="#ecf0f1")
-        subtitle_label.pack(pady=(0, 10))
+        subtitle_label.pack(pady=(0, 5))
         
-        # 基本信息框架 - 使用更美观的样式
-        basic_frame = ttk.LabelFrame(scrollable_frame, text="📋 基本信息", padding=12)
-        basic_frame.pack(fill="x", padx=15, pady=8)
+        # 基本信息框架 - 紧凑设计
+        basic_frame = ttk.LabelFrame(scrollable_frame, text="📋 基本信息", padding=6)
+        basic_frame.pack(fill="x", padx=10, pady=3)
         
         self.victim_name = self.create_entry(basic_frame, "受害人姓名：", 0)
         self.victim_age = self.create_entry(basic_frame, "受害人年龄：", 1)
-        self.victim_type = self.create_combobox(basic_frame, "户籍类型：", 
-                                                 ["城镇", "农村"], 2)
         self.accident_date_year, self.accident_date_month, self.accident_date_day = \
-            self.create_date_selectors(basic_frame, "事故发生日期：", 3)
+            self.create_date_selectors(basic_frame, "事故发生日期：", 2)
         
         # 医疗相关费用框架
-        medical_frame = ttk.LabelFrame(scrollable_frame, text="🏥 医疗相关费用", padding=12)
-        medical_frame.pack(fill="x", padx=15, pady=8)
+        medical_frame = ttk.LabelFrame(scrollable_frame, text="🏥 医疗相关费用", padding=6)
+        medical_frame.pack(fill="x", padx=10, pady=3)
         
         self.medical_expense = self.create_entry(medical_frame, "医疗费（元，诊疗费+医药费+住院费）：", 0)
         self.hospital_days = self.create_entry(medical_frame, "住院天数：", 1)
@@ -216,8 +214,8 @@ class GuangxiCompensationCalculator:
         self.follow_up_treatment_fee = self.create_entry(medical_frame, "后续治疗费（元）：", 6)
         
         # 误工费框架
-        work_frame = ttk.LabelFrame(scrollable_frame, text="💼 误工费", padding=12)
-        work_frame.pack(fill="x", padx=15, pady=8)
+        work_frame = ttk.LabelFrame(scrollable_frame, text="💼 误工费", padding=6)
+        work_frame.pack(fill="x", padx=10, pady=3)
         
         self.work_income_type = self.create_combobox(work_frame, "收入类型", 
                                                      ["固定收入", "无固定收入（能证明最近三年平均）", "无固定收入（不能证明，参照行业平均）"], 0)
@@ -228,11 +226,11 @@ class GuangxiCompensationCalculator:
         self.avg_daily_income = self.create_entry(work_frame, "日均收入（元，无固定收入能证明时填写）：", 2)
         
         # 行业选择下拉框（仅在选择"无固定收入（不能证明，参照行业平均）"时显示）
-        self.industry_label = tk.Label(work_frame, text="行业类型：", font=("Microsoft YaHei", 9))
-        self.industry_label.grid(row=3, column=0, sticky="w", padx=8, pady=6)
+        self.industry_label = tk.Label(work_frame, text="行业类型：", font=("Microsoft YaHei", 8))
+        self.industry_label.grid(row=3, column=0, sticky="w", padx=6, pady=2)
         self.industry_type = ttk.Combobox(work_frame, values=list(self.INDUSTRY_SALARIES.keys()), 
-                                          width=39, state="readonly", font=("Microsoft YaHei", 9))
-        self.industry_type.grid(row=3, column=1, padx=8, pady=6)
+                                          width=39, state="readonly", font=("Microsoft YaHei", 8))
+        self.industry_type.grid(row=3, column=1, padx=6, pady=2)
         self.industry_type.set("其他行业")  # 默认值
         # 初始隐藏行业选择
         self.industry_label.grid_remove()
@@ -241,8 +239,8 @@ class GuangxiCompensationCalculator:
         self.work_loss_days = self.create_entry(work_frame, "误工天数：", 4)
         
         # 护理费框架
-        nursing_frame = ttk.LabelFrame(scrollable_frame, text="👨‍⚕️ 护理费", padding=12)
-        nursing_frame.pack(fill="x", padx=15, pady=8)
+        nursing_frame = ttk.LabelFrame(scrollable_frame, text="👨‍⚕️ 护理费", padding=6)
+        nursing_frame.pack(fill="x", padx=10, pady=3)
         
         self.nursing_type = self.create_combobox(nursing_frame, "护理人员类型：", 
                                                  ["有收入", "无收入或雇佣护工"], 0)
@@ -257,108 +255,105 @@ class GuangxiCompensationCalculator:
         self.on_nursing_type_changed()
         
         # 残疾相关框架
-        self.disability_frame = ttk.LabelFrame(scrollable_frame, text="♿ 残疾赔偿", padding=12)
-        self.disability_frame.pack(fill="x", padx=15, pady=8)
+        self.disability_frame = ttk.LabelFrame(scrollable_frame, text="♿ 残疾赔偿", padding=6)
+        self.disability_frame.pack(fill="x", padx=10, pady=3)
         
-        self.disability_level = self.create_combobox(self.disability_frame, "伤残等级：", 
-                                                     ["无"] + [f"{i}级" for i in range(1, 11)], 0)
+        # 伤残等级输入（支持多处伤残，用逗号或分号分隔，如：5级,8级 或 3级;5级;9级）
+        disability_label = tk.Label(self.disability_frame, text="伤残等级：", font=("Microsoft YaHei", 8))
+        disability_label.grid(row=0, column=0, sticky="w", padx=6, pady=2)
+        self.disability_level = tk.Entry(self.disability_frame, width=40, font=("Microsoft YaHei", 8))
+        self.disability_level.grid(row=0, column=1, padx=6, pady=2)
+        self.disability_level.insert(0, "无")
+        # 添加提示标签
+        hint_label = tk.Label(self.disability_frame, 
+                             text="提示：支持多处伤残，用逗号或分号分隔，如：5级,8级 或 3级;5级;9级（最高等级在前）",
+                             font=("Microsoft YaHei", 7), fg="#7f8c8d")
+        hint_label.grid(row=0, column=2, padx=(3, 0), pady=2, sticky="w")
+        
         self.disability_appliance_fee = self.create_entry(self.disability_frame, "残疾辅助器具费（元）：", 1)
         
         # 被扶养人生活费框架
-        self.dependent_frame = ttk.LabelFrame(scrollable_frame, text="👨‍👩‍👧‍👦 被扶养人生活费", padding=12)
-        self.dependent_frame.pack(fill="x", padx=15, pady=8)
+        self.dependent_frame = ttk.LabelFrame(scrollable_frame, text="👨‍👩‍👧‍👦 被扶养人生活费", padding=6)
+        self.dependent_frame.pack(fill="x", padx=10, pady=3)
         
         self.dependent_info = self.create_entry(self.dependent_frame, "被扶养人信息（格式：年龄1,扶养人数1;年龄2,扶养人数2，如：5,2;65,1）：", 0)
         tk.Label(self.dependent_frame, text="说明：不满18岁按(18-年龄)年计算；18-60岁无劳动能力按20年；60-75岁按[20-(年龄-60)]年；75岁以上按5年", 
-                font=("Arial", 8), fg="gray").grid(row=1, column=0, columnspan=2, sticky="w", padx=5)
+                font=("Arial", 7), fg="gray").grid(row=1, column=0, columnspan=2, sticky="w", padx=6, pady=1)
         
         # 死亡相关框架
-        death_frame = ttk.LabelFrame(scrollable_frame, text="⚰️ 死亡赔偿（如适用）", padding=12)
-        death_frame.pack(fill="x", padx=15, pady=8)
+        death_frame = ttk.LabelFrame(scrollable_frame, text="⚰️ 死亡赔偿（如适用）", padding=6)
+        death_frame.pack(fill="x", padx=10, pady=3)
         
         self.is_death = tk.BooleanVar()
         death_checkbutton = tk.Checkbutton(death_frame, text="是否死亡", variable=self.is_death,
-                                           command=self.on_death_changed)
-        death_checkbutton.grid(row=0, column=0, sticky="w", padx=5, pady=5)
+                                           command=self.on_death_changed, font=("Microsoft YaHei", 8))
+        death_checkbutton.grid(row=0, column=0, sticky="w", padx=6, pady=2)
         
         # 初始状态：如果死亡被选中，隐藏残疾赔偿
         self.on_death_changed()
         
         # 精神损害抚慰金框架
-        mental_frame = ttk.LabelFrame(scrollable_frame, text="💔 精神损害抚慰金", padding=12)
-        mental_frame.pack(fill="x", padx=15, pady=8)
+        mental_frame = ttk.LabelFrame(scrollable_frame, text="💔 精神损害抚慰金", padding=6)
+        mental_frame.pack(fill="x", padx=10, pady=3)
         
         self.mental_damage = self.create_entry(mental_frame, "精神损害抚慰金（元）：", 0)
         
-        # 按钮框架 - 重新设计，更显眼、更合理
-        # 使用带背景色的容器，让按钮区域更突出
-        button_container = tk.Frame(scrollable_frame, bg="#f8f9fa", relief="raised", bd=2)
-        button_container.pack(fill="x", padx=15, pady=25)
+        # 按钮框架 - 紧凑设计
+        button_container = tk.Frame(scrollable_frame, bg="#f8f9fa", relief="raised", bd=1)
+        button_container.pack(fill="x", padx=10, pady=5)
         
-        # 按钮标题
-        button_title = tk.Label(button_container, 
-                                text="操作功能区", 
-                                font=("Microsoft YaHei", 12, "bold"),
-                                bg="#f8f9fa", fg="#2c3e50")
-        button_title.pack(pady=(15, 10))
-        
-        # 主操作按钮区域 - 使用更大的按钮，横向排列
+        # 主操作按钮区域 - 横向排列
         main_button_frame = tk.Frame(button_container, bg="#f8f9fa")
-        main_button_frame.pack(fill="x", padx=20, pady=(0, 15))
+        main_button_frame.pack(fill="x", padx=10, pady=5)
         
-        # 计算赔偿按钮 - 主要操作，最大最显眼（绿色，表示执行/确认）
+        # 计算赔偿按钮
         calculate_btn = tk.Button(main_button_frame, 
                                  text="✓ 计算赔偿", 
                                  command=self.calculate, 
-                                 bg="#27ae60", fg="#2c3e50", 
-                                 font=("Microsoft YaHei", 15, "bold"),
-                                 padx=50, pady=20, 
-                                 relief="raised", bd=4,
+                                 bg="#27ae60", fg="white", 
+                                 font=("Microsoft YaHei", 11, "bold"),
+                                 padx=20, pady=8, 
+                                 relief="raised", bd=2,
                                  cursor="hand2", 
                                  activebackground="#229954",
                                  activeforeground="white",
-                                 highlightthickness=0,
-                                 compound="left")
-        calculate_btn.pack(side="left", padx=8, expand=True, fill="both", ipadx=5)
+                                 highlightthickness=0)
+        calculate_btn.pack(side="left", padx=4, expand=True, fill="both")
         
-        # 导出Word文档按钮 - 次要操作，也很显眼（蓝色，表示导出/保存）
+        # 导出Word文档按钮
         export_btn = tk.Button(main_button_frame, 
-                               text="📄 导出Word文档", 
+                               text="📄 导出Word", 
                                command=self.export_to_word, 
-                               bg="#3498db", fg="#2c3e50", 
-                               font=("Microsoft YaHei", 15, "bold"),
-                               padx=50, pady=20, 
-                               relief="raised", bd=4,
+                               bg="#3498db", fg="white", 
+                               font=("Microsoft YaHei", 11, "bold"),
+                               padx=20, pady=8, 
+                               relief="raised", bd=2,
                                cursor="hand2", 
                                activebackground="#2980b9",
                                activeforeground="white",
                                highlightthickness=0)
-        export_btn.pack(side="left", padx=8, expand=True, fill="both", ipadx=5)
+        export_btn.pack(side="left", padx=4, expand=True, fill="both")
         
-        # 辅助操作按钮区域 - 单独一行
-        aux_button_frame = tk.Frame(button_container, bg="#f8f9fa")
-        aux_button_frame.pack(fill="x", padx=20, pady=(0, 15))
-        
-        # 清空数据按钮 - 辅助操作，较小但清晰（灰色，表示清除/重置）
-        clear_btn = tk.Button(aux_button_frame, 
-                             text="🗑️ 清空所有数据", 
+        # 清空数据按钮
+        clear_btn = tk.Button(main_button_frame, 
+                             text="🗑️ 清空", 
                              command=self.clear_all, 
-                             bg="#95a5a6", fg="#2c3e50", 
-                             font=("Microsoft YaHei", 12, "bold"),
-                             padx=40, pady=14, 
-                             relief="raised", bd=3,
+                             bg="#95a5a6", fg="white", 
+                             font=("Microsoft YaHei", 10, "bold"),
+                             padx=15, pady=8, 
+                             relief="raised", bd=2,
                              cursor="hand2", 
                              activebackground="#7f8c8d",
                              activeforeground="white",
                              highlightthickness=0)
-        clear_btn.pack(expand=True, fill="x")
+        clear_btn.pack(side="left", padx=4, expand=True, fill="both")
         
-        # 结果显示框架
-        result_frame = ttk.LabelFrame(scrollable_frame, text="📊 计算结果", padding=12)
-        result_frame.pack(fill="both", expand=True, padx=15, pady=8)
+        # 结果显示框架 - 紧凑设计
+        result_frame = ttk.LabelFrame(scrollable_frame, text="📊 计算结果", padding=6)
+        result_frame.pack(fill="both", expand=True, padx=10, pady=3)
         
-        self.result_text = tk.Text(result_frame, height=15, wrap=tk.WORD, 
-                                   font=("Consolas", 10), 
+        self.result_text = tk.Text(result_frame, height=10, wrap=tk.WORD, 
+                                   font=("Consolas", 9), 
                                    bg="#ffffff", fg="#2c3e50",
                                    relief="solid", borderwidth=1)
         self.result_text.pack(fill="both", expand=True)
@@ -372,32 +367,32 @@ class GuangxiCompensationCalculator:
         
     def create_entry(self, parent, label_text, row):
         """创建输入框"""
-        label = tk.Label(parent, text=label_text, font=("Microsoft YaHei", 9))
-        label.grid(row=row, column=0, sticky="w", padx=8, pady=6)
-        entry = tk.Entry(parent, width=42, font=("Microsoft YaHei", 9),
+        label = tk.Label(parent, text=label_text, font=("Microsoft YaHei", 8))
+        label.grid(row=row, column=0, sticky="w", padx=6, pady=2)
+        entry = tk.Entry(parent, width=42, font=("Microsoft YaHei", 8),
                          relief="solid", borderwidth=1, bg="#ffffff")
-        entry.grid(row=row, column=1, padx=8, pady=6)
+        entry.grid(row=row, column=1, padx=6, pady=2)
         return entry
     
     def create_combobox(self, parent, label_text, values, row):
         """创建下拉框"""
-        label = tk.Label(parent, text=label_text, font=("Microsoft YaHei", 9))
-        label.grid(row=row, column=0, sticky="w", padx=8, pady=6)
+        label = tk.Label(parent, text=label_text, font=("Microsoft YaHei", 8))
+        label.grid(row=row, column=0, sticky="w", padx=6, pady=2)
         combobox = ttk.Combobox(parent, values=values, width=39, state="readonly",
-                               font=("Microsoft YaHei", 9))
-        combobox.grid(row=row, column=1, padx=8, pady=6)
+                               font=("Microsoft YaHei", 8))
+        combobox.grid(row=row, column=1, padx=6, pady=2)
         if values:
             combobox.set(values[0])
         return combobox
     
     def create_date_selectors(self, parent, label_text, row):
         """创建日期选择器（年、月、日三个下拉框）"""
-        label = tk.Label(parent, text=label_text, font=("Microsoft YaHei", 9))
-        label.grid(row=row, column=0, sticky="w", padx=8, pady=6)
+        label = tk.Label(parent, text=label_text, font=("Microsoft YaHei", 8))
+        label.grid(row=row, column=0, sticky="w", padx=6, pady=2)
         
         # 创建日期选择器框架
         date_frame = tk.Frame(parent)
-        date_frame.grid(row=row, column=1, padx=8, pady=6, sticky="w")
+        date_frame.grid(row=row, column=1, padx=6, pady=2, sticky="w")
         
         # 获取当前日期
         now = datetime.now()
@@ -413,28 +408,28 @@ class GuangxiCompensationCalculator:
         days = [f"{d:02d}" for d in range(1, 32)]
         
         # 创建年份下拉框
-        year_label = tk.Label(date_frame, text="年", font=("Microsoft YaHei", 9))
-        year_label.pack(side="left", padx=(0, 2))
+        year_label = tk.Label(date_frame, text="年", font=("Microsoft YaHei", 8))
+        year_label.pack(side="left", padx=(0, 1))
         year_combo = ttk.Combobox(date_frame, values=years, width=6, 
-                                 state="readonly", font=("Microsoft YaHei", 9))
+                                 state="readonly", font=("Microsoft YaHei", 8))
         year_combo.set(str(current_year))
-        year_combo.pack(side="left", padx=2)
+        year_combo.pack(side="left", padx=1)
         
         # 创建月份下拉框
-        month_label = tk.Label(date_frame, text="月", font=("Microsoft YaHei", 9))
-        month_label.pack(side="left", padx=(0, 2))
+        month_label = tk.Label(date_frame, text="月", font=("Microsoft YaHei", 8))
+        month_label.pack(side="left", padx=(0, 1))
         month_combo = ttk.Combobox(date_frame, values=months, width=4, 
-                                  state="readonly", font=("Microsoft YaHei", 9))
+                                  state="readonly", font=("Microsoft YaHei", 8))
         month_combo.set(f"{current_month:02d}")
-        month_combo.pack(side="left", padx=2)
+        month_combo.pack(side="left", padx=1)
         
         # 创建日期下拉框
-        day_label = tk.Label(date_frame, text="日", font=("Microsoft YaHei", 9))
-        day_label.pack(side="left", padx=(0, 2))
+        day_label = tk.Label(date_frame, text="日", font=("Microsoft YaHei", 8))
+        day_label.pack(side="left", padx=(0, 1))
         day_combo = ttk.Combobox(date_frame, values=days, width=4, 
-                                state="readonly", font=("Microsoft YaHei", 9))
+                                state="readonly", font=("Microsoft YaHei", 8))
         day_combo.set(f"{current_day:02d}")
-        day_combo.pack(side="left", padx=2)
+        day_combo.pack(side="left", padx=1)
         
         # 更新日期列表的函数（根据年月调整天数）
         def update_days(*args):
@@ -561,6 +556,91 @@ class GuangxiCompensationCalculator:
                 nursing_income_label[0].grid_remove()
             self.nursing_income.grid_remove()
     
+    def calculate_multi_disability_coefficient(self, disability_levels_str):
+        """
+        计算多处伤残的伤残系数
+        根据《道路交通事故受伤人员伤残评定》标准：
+        1. 最高伤残等级系数：取所有伤残等级中最高的一个
+        2. 附加指数：
+           - 2-5级伤残：每处附加指数为4%
+           - 6-10级伤残：每处附加指数为2%
+           - 附加指数总和不超过10%
+        3. 最终伤残系数 = 最高伤残等级系数 + 附加指数（但不超过100%）
+        
+        参数：
+        - disability_levels_str: 伤残等级字符串，如"5级,8级"或"3级;5级;9级"
+        
+        返回：(最终伤残系数, 最高伤残等级, 附加指数, 计算详情)
+        """
+        if not disability_levels_str or disability_levels_str.strip() == "无":
+            return 1.0, None, 0.0, "无伤残，系数为1.0"
+        
+        # 解析伤残等级
+        disability_levels = []
+        try:
+            # 支持逗号和分号分隔
+            parts = disability_levels_str.replace('，', ',').replace('；', ';').replace(',', ';').split(';')
+            for part in parts:
+                part = part.strip()
+                if not part:
+                    continue
+                # 提取数字
+                if '级' in part:
+                    level = int(part.replace('级', '').strip())
+                else:
+                    level = int(part.strip())
+                if 1 <= level <= 10:
+                    disability_levels.append(level)
+        except (ValueError, AttributeError):
+            return 1.0, None, 0.0, "伤残等级格式错误，按无伤残处理"
+        
+        if not disability_levels:
+            return 1.0, None, 0.0, "无有效伤残等级，系数为1.0"
+        
+        # 去重并排序（从高到低）
+        disability_levels = sorted(set(disability_levels))
+        
+        # 获取最高伤残等级
+        max_level = disability_levels[0]  # 最高等级（数字最小）
+        max_coefficient = self.DISABILITY_COEFFICIENTS.get(max_level, 1.0)
+        
+        # 计算附加指数（排除最高等级）
+        additional_levels = disability_levels[1:] if len(disability_levels) > 1 else []
+        additional_index = 0.0
+        
+        detail_parts = [f"伤残等级：{', '.join([f'{l}级' for l in disability_levels])}\n"]
+        detail_parts.append(f"最高伤残等级：{max_level}级，系数：{max_coefficient}\n")
+        
+        if additional_levels:
+            detail_parts.append("附加伤残等级：")
+            for idx, level in enumerate(additional_levels):
+                if idx > 0:
+                    detail_parts.append("、")
+                if 2 <= level <= 5:
+                    additional_index += 0.04  # 4%
+                    detail_parts.append(f"{level}级（附加4%）")
+                elif 6 <= level <= 10:
+                    additional_index += 0.02  # 2%
+                    detail_parts.append(f"{level}级（附加2%）")
+                # 注意：1级伤残不应作为附加等级，因为1级已经是100%
+            
+            # 附加指数总和不超过10%
+            additional_index = min(additional_index, 0.10)
+            detail_parts.append(f"\n附加指数合计：{additional_index * 100:.0f}%\n")
+        else:
+            detail_parts.append("无附加伤残等级\n")
+        
+        # 计算最终系数（不超过100%）
+        final_coefficient = min(max_coefficient + additional_index, 1.0)
+        
+        detail_parts.append(f"最终伤残系数 = {max_coefficient} + {additional_index} = {final_coefficient}")
+        if final_coefficient >= 1.0:
+            detail_parts.append("（已达到100%上限）")
+        
+        detail = "".join(detail_parts)
+        
+        return final_coefficient, max_level, additional_index, detail
+    
     def on_death_changed(self):
         """当死亡复选框状态改变时，显示/隐藏残疾赔偿框架"""
         if self.is_death.get():
@@ -568,7 +648,11 @@ class GuangxiCompensationCalculator:
             self.disability_frame.pack_forget()
             # 同时重置残疾赔偿相关字段
             if hasattr(self, 'disability_level'):
-                self.disability_level.set("无")
+                if isinstance(self.disability_level, tk.Entry):
+                    self.disability_level.delete(0, tk.END)
+                    self.disability_level.insert(0, "无")
+                else:
+                    self.disability_level.set("无")
             if hasattr(self, 'disability_appliance_fee'):
                 self.disability_appliance_fee.delete(0, tk.END)
         else:
@@ -661,7 +745,7 @@ class GuangxiCompensationCalculator:
             detail = f"无收入或雇佣护工计算：\n护工标准：{nursing_fee_per_day:,.2f}元/天\n护理天数：{nursing_days}天\n护理人数：{nursing_count}人\n护理费 = 护工标准 × 护理天数 × 护理人数 = {nursing_fee_per_day:,.2f} × {nursing_days} × {nursing_count} = {amount:,.2f}元"
             return amount, detail
     
-    def calculate_dependent_living_expense(self, victim_age):
+    def calculate_dependent_living_expense(self, victim_age, disability_coefficient=1.0, is_death=False):
         """
         计算被扶养人生活费
         根据《最高人民法院关于审理人身损害赔偿案件适用法律若干问题的解释》第28条
@@ -674,6 +758,13 @@ class GuangxiCompensationCalculator:
         4. 75周岁以上：生活费 = 消费支出 × 5年
         5. 有其他扶养人时：赔偿义务人承担的费用 = 生活费 ÷ 扶养人数
         6. 被扶养人有数人时：年赔偿总额 ≤ 消费支出
+        7. 需要考虑伤残系数：最终金额 = 计算金额 × 伤残系数
+        8. 受害人死亡的，无需乘以伤残系数（视为系数100%）
+        
+        参数：
+        - victim_age: 受害人年龄
+        - disability_coefficient: 伤残系数（默认1.0，即无伤残）
+        - is_death: 是否死亡（默认False）
         
         返回：(金额, 计算详情)
         """
@@ -783,7 +874,20 @@ class GuangxiCompensationCalculator:
         
         total_formula = " + ".join(year_amounts) if year_amounts else "0"
         
-        detail = "".join(detail_parts) + "\n按年计算明细：\n" + "\n".join(year_details) + f"\n\n总计 = " + total_formula + f" = {total_expense:,.2f}元"
+        # 应用伤残系数（死亡情况下系数为100%）
+        original_total = total_expense
+        total_expense = total_expense * disability_coefficient
+        
+        # 更新计算详情，说明考虑了伤残系数或死亡情况
+        if is_death:
+            # 死亡情况：系数为100%
+            detail = "".join(detail_parts) + "\n按年计算明细：\n" + "\n".join(year_details) + f"\n\n小计 = " + total_formula + f" = {original_total:,.2f}元\n受害人死亡，系数为100%（无需乘以伤残系数）\n被扶养人生活费 = 小计 × 100% = {original_total:,.2f} × 1.0 = {total_expense:,.2f}元"
+        elif disability_coefficient < 1.0:
+            # 有伤残情况：使用伤残系数
+            detail = "".join(detail_parts) + "\n按年计算明细：\n" + "\n".join(year_details) + f"\n\n小计 = " + total_formula + f" = {original_total:,.2f}元\n伤残系数：{disability_coefficient}\n被扶养人生活费 = 小计 × 伤残系数 = {original_total:,.2f} × {disability_coefficient} = {total_expense:,.2f}元"
+        else:
+            # 无伤残情况
+            detail = "".join(detail_parts) + "\n按年计算明细：\n" + "\n".join(year_details) + f"\n\n总计 = " + total_formula + f" = {total_expense:,.2f}元"
         
         return total_expense, detail
     
@@ -795,8 +899,6 @@ class GuangxiCompensationCalculator:
             # 基本信息
             victim_name = self.victim_name.get().strip() or "未填写"
             victim_age = self.get_int_value(self.victim_age, 0)
-            victim_type = self.victim_type.get()
-            is_urban = (victim_type == "城镇")
             
             # 1. 医疗费 = 诊疗费+医药费+住院费
             medical_expense = self.get_float_value(self.medical_expense)
@@ -849,19 +951,28 @@ class GuangxiCompensationCalculator:
             results['护理费'] = nursing_fee_total
             self.calculation_details['护理费'] = nursing_detail
             
-            # 8. 残疾赔偿金（2025年标准统一使用城镇居民人均可支配收入）
-            disability_level_str = self.disability_level.get()
-            if disability_level_str and disability_level_str != "无":
-                disability_level = int(disability_level_str.replace("级", ""))
-                coefficient = self.DISABILITY_COEFFICIENTS.get(disability_level, 0)
+            # 8. 残疾赔偿金（2025年标准统一使用城镇居民人均可支配收入，支持多处伤残）
+            if isinstance(self.disability_level, tk.Entry):
+                disability_level_str = self.disability_level.get().strip()
+            else:
+                disability_level_str = self.disability_level.get() if hasattr(self.disability_level, 'get') else "无"
+            
+            # 计算多处伤残系数
+            disability_coefficient, max_level, additional_index, disability_detail = \
+                self.calculate_multi_disability_coefficient(disability_level_str)
+            
+            if disability_coefficient < 1.0 or (disability_level_str and disability_level_str != "无"):
                 base_income = self.STANDARDS['disposable_income']  # 统一使用城镇居民标准
                 income_type = "广西上一年度城镇居民人均可支配收入"
                 # 计算年限：根据年龄调整
                 years = self.calculate_compensation_years(victim_age)
-                disability_compensation = base_income * years * coefficient
+                disability_compensation = base_income * years * disability_coefficient
                 results['残疾赔偿金'] = disability_compensation
                 year_desc = f"{years}年" if victim_age < 60 else (f"{years}年（60周岁以上每增加一岁减少一年）" if victim_age < 75 else f"{years}年（75周岁以上按5年计算）")
-                self.calculation_details['残疾赔偿金'] = f"伤残等级：{disability_level}级，系数：{coefficient}\n{income_type}：{base_income:,.2f}元/年\n赔偿年限：{year_desc}\n残疾赔偿金 = {income_type} × 赔偿年限 × 伤残系数 = {base_income:,.2f} × {years} × {coefficient} = {disability_compensation:,.2f}元"
+                
+                # 构建计算详情
+                detail = f"{disability_detail}\n{income_type}：{base_income:,.2f}元/年\n赔偿年限：{year_desc}\n残疾赔偿金 = {income_type} × 赔偿年限 × 伤残系数 = {base_income:,.2f} × {years} × {disability_coefficient} = {disability_compensation:,.2f}元"
+                self.calculation_details['残疾赔偿金'] = detail
             else:
                 results['残疾赔偿金'] = 0
             
@@ -871,8 +982,17 @@ class GuangxiCompensationCalculator:
             if disability_appliance_fee > 0:
                 self.calculation_details['残疾辅助器具费'] = f"残疾辅助器具费 = {disability_appliance_fee:,.2f}元"
             
-            # 10. 被扶养人生活费（按年龄段精确计算，2025年标准统一使用城镇居民人均消费支出）
-            dependent_living_expense, dependent_detail = self.calculate_dependent_living_expense(victim_age)
+            # 10. 被扶养人生活费（按年龄段精确计算，2025年标准统一使用城镇居民人均消费支出，需要考虑伤残系数）
+            # 注意：受害人死亡的，无需乘以伤残系数（视为系数100%）
+            is_death = self.is_death.get()
+            if is_death:
+                # 死亡情况下，使用系数1.0（100%）
+                dependent_coefficient = 1.0
+            else:
+                # 非死亡情况，使用伤残系数
+                dependent_coefficient = disability_coefficient
+            
+            dependent_living_expense, dependent_detail = self.calculate_dependent_living_expense(victim_age, dependent_coefficient, is_death)
             results['被扶养人生活费'] = dependent_living_expense
             if dependent_living_expense > 0:
                 self.calculation_details['被扶养人生活费'] = dependent_detail
@@ -915,7 +1035,7 @@ class GuangxiCompensationCalculator:
             self.calculation_results = results
             
             # 显示结果
-            self.display_results(results, victim_name, victim_age, victim_type)
+            self.display_results(results, victim_name, victim_age)
             
             messagebox.showinfo("成功", "计算完成！请查看计算结果。")
             
@@ -924,7 +1044,7 @@ class GuangxiCompensationCalculator:
             import traceback
             traceback.print_exc()
     
-    def display_results(self, results, name, age, victim_type):
+    def display_results(self, results, name, age):
         """显示计算结果"""
         self.result_text.delete(1.0, tk.END)
         
@@ -933,7 +1053,6 @@ class GuangxiCompensationCalculator:
         output += f"{'='*50}\n\n"
         output += f"受害人姓名：{name}\n"
         output += f"受害人年龄：{age}岁\n"
-        output += f"户籍类型：{victim_type}\n"
         output += f"计算日期：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
         output += f"\n{'-'*50}\n"
         output += f"各项赔偿明细：\n"
@@ -1105,7 +1224,6 @@ class GuangxiCompensationCalculator:
             doc.add_heading('一、基本信息', level=1)
             victim_name = self.victim_name.get().strip() or "未填写"
             victim_age = self.get_int_value(self.victim_age, 0)
-            victim_type = self.victim_type.get()
             # 获取日期（从三个下拉框获取）
             try:
                 year = self.accident_date_year.get().strip()
@@ -1118,7 +1236,7 @@ class GuangxiCompensationCalculator:
             except:
                 accident_date = "未填写"
             
-            basic_table = doc.add_table(rows=4, cols=2)
+            basic_table = doc.add_table(rows=3, cols=2)
             basic_table.style = 'Light Grid Accent 1'
             
             # 设置表格列宽
@@ -1128,7 +1246,6 @@ class GuangxiCompensationCalculator:
             basic_info = [
                 ('受害人姓名', victim_name),
                 ('受害人年龄', f"{victim_age}岁"),
-                ('户籍类型', victim_type),
                 ('事故发生日期', accident_date),
             ]
             

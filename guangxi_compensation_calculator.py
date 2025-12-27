@@ -8,6 +8,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from datetime import datetime
+from tkcalendar import DateEntry
 from docx import Document
 from docx.shared import Pt, Inches, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -28,8 +29,33 @@ class GuangxiCompensationCalculator:
         'daily_meal_subsidy': 100,  # 住院伙食补助费（元/天）
         'daily_nursing_fee': 157.9,  # 护理费标准（元/天，护工标准）
         'funeral_expense': 49434,  # 丧葬费（元）
-        'industry_avg_salary': 80000,  # 行业平均工资（元/年），用于误工费计算
         'traffic_fee_city': 30,  # 市内交通费标准（元/天）
+        'daily_accommodation_fee': 330,  # 住宿费标准（元/天）
+    }
+    
+    # 各行业平均工资（元/年）- 根据广西上一年度统计数据
+    # 数据来源：桂公通〔2025〕60号文件
+    INDUSTRY_SALARIES = {
+        '农、林、牧、渔业': 88472,
+        '采矿业': 84319,
+        '制造业': 81668,
+        '电力、热力、燃气及水生产和供应业': 146394,
+        '建筑业': 81819,
+        '批发和零售业': 91322,
+        '交通运输、仓储和邮政业':116278,
+        '住宿和餐饮业': 49065,
+        '信息传输、软件和信息技术服务业': 140726,
+        '金融业': 166109,
+        '房地产业': 78846,
+        '租赁和商务服务业': 74050,
+        '科学研究和技术服务业': 113638,
+        '水利、环境和公共设施管理业': 64797,
+        '居民服务、修理和其他服务业': 56848,
+        '教育': 96386,
+        '卫生和社会工作': 120902,
+        '文化、体育和娱乐业': 93209,
+        '公共管理、社会保障和社会组织': 93976,
+        '其他行业': 60000,
     }
     
     # 伤残等级系数
@@ -48,7 +74,7 @@ class GuangxiCompensationCalculator:
     
     def __init__(self, root):
         self.root = root
-        self.root.title("广西人身损害赔偿计算器 瀛桂律所唐学智律师制作")
+        self.root.title("广西瀛桂律师事务所 唐学智律师制作")
         self.root.geometry("900x1000")
         self.root.resizable(True, True)
         
@@ -62,13 +88,95 @@ class GuangxiCompensationCalculator:
         scrollbar = ttk.Scrollbar(self.root, orient="vertical", command=canvas.yview)
         scrollable_frame = ttk.Frame(canvas)
         
-        scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
+        # 更新canvas的scrollregion
+        def update_scrollregion(event=None):
+            canvas.update_idletasks()
+            canvas.configure(scrollregion=canvas.bbox("all"))
+        
+        scrollable_frame.bind("<Configure>", update_scrollregion)
         
         canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
         canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # 绑定鼠标滚轮事件 - Mac特殊处理
+        import platform
+        system = platform.system()
+        
+        def _on_mousewheel(event):
+            """处理鼠标滚轮事件"""
+            try:
+                if system == "Darwin":  # Mac系统
+                    # Mac使用delta，值通常是正数向上，负数向下
+                    # 但需要除以一个系数来调整滚动速度
+                    delta = getattr(event, 'delta', 0)
+                    if delta:
+                        # Mac的delta值较小，需要调整
+                        scroll_amount = int(-1 * delta / 3)  # 调整滚动速度
+                        canvas.yview_scroll(scroll_amount, "units")
+                elif system == "Windows":  # Windows系统
+                    # Windows使用delta/120
+                    delta = getattr(event, 'delta', 0)
+                    if delta:
+                        canvas.yview_scroll(int(-1 * (delta / 120)), "units")
+                else:  # Linux系统
+                    # Linux使用Button-4和Button-5
+                    num = getattr(event, 'num', 0)
+                    if num == 4:
+                        canvas.yview_scroll(-1, "units")
+                    elif num == 5:
+                        canvas.yview_scroll(1, "units")
+            except Exception as e:
+                # 如果出错，尝试通用方法
+                try:
+                    delta = getattr(event, 'delta', 0)
+                    if delta:
+                        canvas.yview_scroll(int(-1 * delta / 3), "units")
+                except:
+                    pass
+        
+        # Mac系统需要特殊处理 - 直接绑定，不需要Enter/Leave事件
+        if system == "Darwin":
+            # Mac上直接绑定到所有组件，不需要Enter/Leave
+            # 使用bind_all确保全局绑定
+            self.root.bind_all("<MouseWheel>", _on_mousewheel)
+            self.root.bind_all("<Button-4>", _on_mousewheel)
+            self.root.bind_all("<Button-5>", _on_mousewheel)
+            
+            # 同时也绑定到canvas本身
+            canvas.bind("<MouseWheel>", _on_mousewheel)
+            canvas.bind("<Button-4>", _on_mousewheel)
+            canvas.bind("<Button-5>", _on_mousewheel)
+            
+            # 绑定到scrollable_frame
+            scrollable_frame.bind("<MouseWheel>", _on_mousewheel)
+            scrollable_frame.bind("<Button-4>", _on_mousewheel)
+            scrollable_frame.bind("<Button-5>", _on_mousewheel)
+        else:
+            # Windows和Linux的处理
+            def _bind_to_mousewheel(event):
+                if system == "Windows":
+                    canvas.bind_all("<MouseWheel>", _on_mousewheel)
+                else:  # Linux
+                    canvas.bind_all("<Button-4>", _on_mousewheel)
+                    canvas.bind_all("<Button-5>", _on_mousewheel)
+            
+            def _unbind_from_mousewheel(event):
+                canvas.unbind_all("<MouseWheel>")
+                canvas.unbind_all("<Button-4>")
+                canvas.unbind_all("<Button-5>")
+            
+            canvas.bind('<Enter>', _bind_to_mousewheel)
+            canvas.bind('<Leave>', _unbind_from_mousewheel)
+            scrollable_frame.bind('<Enter>', _bind_to_mousewheel)
+            scrollable_frame.bind('<Leave>', _unbind_from_mousewheel)
+            self.root.bind('<Enter>', _bind_to_mousewheel)
+        
+        # 确保canvas可以接收焦点
+        canvas.focus_set()
+        
+        # 保存canvas引用以便后续使用
+        self.canvas = canvas
+        self.scrollable_frame = scrollable_frame
         
         # 标题区域 - 使用更美观的样式
         title_frame = tk.Frame(scrollable_frame, bg="#2c3e50", height=60)
@@ -93,7 +201,7 @@ class GuangxiCompensationCalculator:
         self.victim_age = self.create_entry(basic_frame, "受害人年龄：", 1)
         self.victim_type = self.create_combobox(basic_frame, "户籍类型：", 
                                                  ["城镇", "农村"], 2)
-        self.accident_date = self.create_entry(basic_frame, "事故发生日期（YYYY-MM-DD）：", 3)
+        self.accident_date = self.create_date_entry(basic_frame, "事故发生日期：", 3)
         
         # 医疗相关费用框架
         medical_frame = ttk.LabelFrame(scrollable_frame, text="🏥 医疗相关费用", padding=12)
@@ -104,7 +212,7 @@ class GuangxiCompensationCalculator:
         self.meal_subsidy = self.create_entry(medical_frame, "住院伙食补助费（元/天，默认100）：", 2)
         self.nutrition_fee = self.create_entry(medical_frame, "营养费（元）：", 3)
         self.traffic_fee = self.create_entry(medical_frame, "交通费（元）：", 4)
-        self.accommodation_fee = self.create_entry(medical_frame, "住宿费（元）：", 5)
+        self.accommodation_days = self.create_entry(medical_frame, "住宿天数：", 5)
         
         # 误工费框架
         work_frame = ttk.LabelFrame(scrollable_frame, text="💼 误工费", padding=12)
@@ -112,9 +220,24 @@ class GuangxiCompensationCalculator:
         
         self.work_income_type = self.create_combobox(work_frame, "收入类型：", 
                                                      ["固定收入", "无固定收入（能证明最近三年平均）", "无固定收入（不能证明，参照行业平均）"], 0)
+        # 绑定收入类型变化事件，显示/隐藏相关字段
+        self.work_income_type.bind("<<ComboboxSelected>>", self.on_income_type_changed)
+        
         self.monthly_income = self.create_entry(work_frame, "月收入（元，固定收入时填写）：", 1)
         self.avg_daily_income = self.create_entry(work_frame, "日均收入（元，无固定收入能证明时填写）：", 2)
-        self.work_loss_days = self.create_entry(work_frame, "误工天数：", 3)
+        
+        # 行业选择下拉框（仅在选择"无固定收入（不能证明，参照行业平均）"时显示）
+        self.industry_label = tk.Label(work_frame, text="行业类型：", font=("Microsoft YaHei", 9))
+        self.industry_label.grid(row=3, column=0, sticky="w", padx=8, pady=6)
+        self.industry_type = ttk.Combobox(work_frame, values=list(self.INDUSTRY_SALARIES.keys()), 
+                                          width=39, state="readonly", font=("Microsoft YaHei", 9))
+        self.industry_type.grid(row=3, column=1, padx=8, pady=6)
+        self.industry_type.set("其他行业")  # 默认值
+        # 初始隐藏行业选择
+        self.industry_label.grid_remove()
+        self.industry_type.grid_remove()
+        
+        self.work_loss_days = self.create_entry(work_frame, "误工天数：", 4)
         
         # 护理费框架
         nursing_frame = ttk.LabelFrame(scrollable_frame, text="👨‍⚕️ 护理费", padding=12)
@@ -122,9 +245,15 @@ class GuangxiCompensationCalculator:
         
         self.nursing_type = self.create_combobox(nursing_frame, "护理人员类型：", 
                                                  ["有收入", "无收入或雇佣护工"], 0)
+        # 绑定护理人员类型变化事件，显示/隐藏相关字段
+        self.nursing_type.bind("<<ComboboxSelected>>", self.on_nursing_type_changed)
+        
         self.nursing_income = self.create_entry(nursing_frame, "护理人员日均收入（元，有收入时填写）：", 1)
         self.nursing_days = self.create_entry(nursing_frame, "护理天数：", 2)
         self.nursing_count = self.create_entry(nursing_frame, "护理人数（默认1人）：", 3)
+        
+        # 初始状态：根据默认选择显示/隐藏
+        self.on_nursing_type_changed()
         
         # 残疾相关框架
         disability_frame = ttk.LabelFrame(scrollable_frame, text="♿ 残疾赔偿", padding=12)
@@ -155,36 +284,68 @@ class GuangxiCompensationCalculator:
         
         self.mental_damage = self.create_entry(mental_frame, "精神损害抚慰金（元）：", 0)
         
-        # 按钮框架 - 优化按钮样式
-        button_frame = tk.Frame(scrollable_frame, bg="#ecf0f1")
-        button_frame.pack(fill="x", padx=15, pady=20)
+        # 按钮框架 - 重新设计，更显眼、更合理
+        # 使用带背景色的容器，让按钮区域更突出
+        button_container = tk.Frame(scrollable_frame, bg="#f8f9fa", relief="raised", bd=2)
+        button_container.pack(fill="x", padx=15, pady=25)
         
-        calculate_btn = tk.Button(button_frame, text="✓ 计算赔偿", 
+        # 按钮标题
+        button_title = tk.Label(button_container, 
+                                text="操作功能区", 
+                                font=("Microsoft YaHei", 12, "bold"),
+                                bg="#f8f9fa", fg="#2c3e50")
+        button_title.pack(pady=(15, 10))
+        
+        # 主操作按钮区域 - 使用更大的按钮，横向排列
+        main_button_frame = tk.Frame(button_container, bg="#f8f9fa")
+        main_button_frame.pack(fill="x", padx=20, pady=(0, 15))
+        
+        # 计算赔偿按钮 - 主要操作，最大最显眼（绿色，表示执行/确认）
+        calculate_btn = tk.Button(main_button_frame, 
+                                 text="✓ 计算赔偿", 
                                  command=self.calculate, 
-                                 bg="#27ae60", fg="white", 
-                                 font=("Microsoft YaHei", 11, "bold"),
-                                 padx=25, pady=12, relief="flat",
-                                 cursor="hand2", activebackground="#229954",
-                                 activeforeground="white")
-        calculate_btn.pack(side="left", padx=8)
+                                 bg="#27ae60", fg="#2c3e50", 
+                                 font=("Microsoft YaHei", 15, "bold"),
+                                 padx=50, pady=20, 
+                                 relief="raised", bd=4,
+                                 cursor="hand2", 
+                                 activebackground="#229954",
+                                 activeforeground="white",
+                                 highlightthickness=0,
+                                 compound="left")
+        calculate_btn.pack(side="left", padx=8, expand=True, fill="both", ipadx=5)
         
-        export_btn = tk.Button(button_frame, text="📄 导出Word文档", 
+        # 导出Word文档按钮 - 次要操作，也很显眼（蓝色，表示导出/保存）
+        export_btn = tk.Button(main_button_frame, 
+                               text="📄 导出Word文档", 
                                command=self.export_to_word, 
-                               bg="#3498db", fg="white", 
-                               font=("Microsoft YaHei", 11, "bold"),
-                               padx=25, pady=12, relief="flat",
-                               cursor="hand2", activebackground="#2980b9",
-                               activeforeground="white")
-        export_btn.pack(side="left", padx=8)
+                               bg="#3498db", fg="#2c3e50", 
+                               font=("Microsoft YaHei", 15, "bold"),
+                               padx=50, pady=20, 
+                               relief="raised", bd=4,
+                               cursor="hand2", 
+                               activebackground="#2980b9",
+                               activeforeground="white",
+                               highlightthickness=0)
+        export_btn.pack(side="left", padx=8, expand=True, fill="both", ipadx=5)
         
-        clear_btn = tk.Button(button_frame, text="🗑️ 清空数据", 
+        # 辅助操作按钮区域 - 单独一行
+        aux_button_frame = tk.Frame(button_container, bg="#f8f9fa")
+        aux_button_frame.pack(fill="x", padx=20, pady=(0, 15))
+        
+        # 清空数据按钮 - 辅助操作，较小但清晰（灰色，表示清除/重置）
+        clear_btn = tk.Button(aux_button_frame, 
+                             text="🗑️ 清空所有数据", 
                              command=self.clear_all, 
-                             bg="#e74c3c", fg="white", 
-                             font=("Microsoft YaHei", 11, "bold"),
-                             padx=25, pady=12, relief="flat",
-                             cursor="hand2", activebackground="#c0392b",
-                             activeforeground="white")
-        clear_btn.pack(side="left", padx=8)
+                             bg="#95a5a6", fg="#2c3e50", 
+                             font=("Microsoft YaHei", 12, "bold"),
+                             padx=40, pady=14, 
+                             relief="raised", bd=3,
+                             cursor="hand2", 
+                             activebackground="#7f8c8d",
+                             activeforeground="white",
+                             highlightthickness=0)
+        clear_btn.pack(expand=True, fill="x")
         
         # 结果显示框架
         result_frame = ttk.LabelFrame(scrollable_frame, text="📊 计算结果", padding=12)
@@ -223,6 +384,63 @@ class GuangxiCompensationCalculator:
             combobox.set(values[0])
         return combobox
     
+    def create_date_entry(self, parent, label_text, row):
+        """创建日期选择器"""
+        label = tk.Label(parent, text=label_text, font=("Microsoft YaHei", 9))
+        label.grid(row=row, column=0, sticky="w", padx=8, pady=6)
+        
+        # 创建日期选择器框架
+        date_frame = tk.Frame(parent)
+        date_frame.grid(row=row, column=1, padx=8, pady=6, sticky="w")
+        
+        # 检测系统平台，Mac系统使用不同的配置
+        import platform
+        is_mac = platform.system() == "Darwin"
+        
+        # 创建日期选择器，Mac系统使用默认样式避免黑屏问题
+        try:
+            if is_mac:
+                # Mac系统：使用最简配置，避免显示问题
+                date_entry = DateEntry(date_frame, width=18,
+                                      date_pattern='yyyy-mm-dd',
+                                      font=("Arial", 10),
+                                      selectmode='day',
+                                      year=datetime.now().year,
+                                      month=datetime.now().month,
+                                      day=datetime.now().day,
+                                      firstweekday='sunday')
+            else:
+                # 其他系统：使用自定义样式
+                date_entry = DateEntry(date_frame, width=18, 
+                                      background='#3498db',
+                                      foreground='white', 
+                                      borderwidth=2,
+                                      date_pattern='yyyy-mm-dd',
+                                      font=("Microsoft YaHei", 10),
+                                      locale='zh_CN',
+                                      selectmode='day',
+                                      year=datetime.now().year,
+                                      month=datetime.now().month,
+                                      day=datetime.now().day)
+        except Exception as e:
+            # 如果出现错误，使用最基本的配置
+            date_entry = DateEntry(date_frame, width=18,
+                                  date_pattern='yyyy-mm-dd',
+                                  selectmode='day',
+                                  year=datetime.now().year,
+                                  month=datetime.now().month,
+                                  day=datetime.now().day)
+        date_entry.pack(side="left")
+        
+        # 添加一个提示标签
+        hint_label = tk.Label(date_frame, text="📅 点击选择日期", 
+                             font=("Microsoft YaHei", 8), fg="#7f8c8d")
+        hint_label.pack(side="left", padx=(8, 0))
+        
+        # 返回日期选择器对象，以便后续获取日期
+        date_entry.get_date_str = lambda: date_entry.get_date().strftime('%Y-%m-%d')
+        return date_entry
+    
     def get_float_value(self, entry, default=0.0):
         """获取浮点数值"""
         try:
@@ -238,6 +456,78 @@ class GuangxiCompensationCalculator:
             return int(value) if value else default
         except ValueError:
             return default
+    
+    def on_income_type_changed(self, event=None):
+        """当收入类型改变时，显示/隐藏相关字段"""
+        income_type = self.work_income_type.get()
+        
+        if income_type == "固定收入":
+            # 显示月收入，隐藏日均收入和行业选择
+            monthly_label = self.monthly_income.master.grid_slaves(row=1, column=0)
+            if monthly_label:
+                monthly_label[0].grid()
+            self.monthly_income.grid()
+            # 隐藏日均收入
+            avg_label = self.avg_daily_income.master.grid_slaves(row=2, column=0)
+            if avg_label:
+                avg_label[0].grid_remove()
+            self.avg_daily_income.grid_remove()
+            # 隐藏行业选择
+            if hasattr(self, 'industry_label'):
+                self.industry_label.grid_remove()
+            if hasattr(self, 'industry_type'):
+                self.industry_type.grid_remove()
+            
+        elif income_type == "无固定收入（能证明最近三年平均）":
+            # 显示日均收入，隐藏月收入和行业选择
+            monthly_label = self.monthly_income.master.grid_slaves(row=1, column=0)
+            if monthly_label:
+                monthly_label[0].grid_remove()
+            self.monthly_income.grid_remove()
+            # 显示日均收入
+            avg_label = self.avg_daily_income.master.grid_slaves(row=2, column=0)
+            if avg_label:
+                avg_label[0].grid()
+            self.avg_daily_income.grid()
+            # 隐藏行业选择
+            if hasattr(self, 'industry_label'):
+                self.industry_label.grid_remove()
+            if hasattr(self, 'industry_type'):
+                self.industry_type.grid_remove()
+            
+        else:  # 无固定收入（不能证明，参照行业平均）
+            # 显示行业选择，隐藏月收入和日均收入
+            monthly_label = self.monthly_income.master.grid_slaves(row=1, column=0)
+            if monthly_label:
+                monthly_label[0].grid_remove()
+            self.monthly_income.grid_remove()
+            # 隐藏日均收入
+            avg_label = self.avg_daily_income.master.grid_slaves(row=2, column=0)
+            if avg_label:
+                avg_label[0].grid_remove()
+            self.avg_daily_income.grid_remove()
+            # 显示行业选择
+            if hasattr(self, 'industry_label'):
+                self.industry_label.grid()
+            if hasattr(self, 'industry_type'):
+                self.industry_type.grid()
+    
+    def on_nursing_type_changed(self, event=None):
+        """当护理人员类型改变时，显示/隐藏相关字段"""
+        nursing_type = self.nursing_type.get()
+        
+        if nursing_type == "有收入":
+            # 显示护理人员日均收入输入框
+            nursing_income_label = self.nursing_income.master.grid_slaves(row=1, column=0)
+            if nursing_income_label:
+                nursing_income_label[0].grid()
+            self.nursing_income.grid()
+        else:  # 无收入或雇佣护工
+            # 隐藏护理人员日均收入输入框
+            nursing_income_label = self.nursing_income.master.grid_slaves(row=1, column=0)
+            if nursing_income_label:
+                nursing_income_label[0].grid_remove()
+            self.nursing_income.grid_remove()
     
     def calculate_compensation_years(self, age):
         """
@@ -286,10 +576,12 @@ class GuangxiCompensationCalculator:
         
         else:  # 无固定收入（不能证明，参照行业平均）
             # 不能证明的，参照受诉法院所在地相同或者相近行业上一年度职工的平均工资计算
-            industry_avg_salary = self.STANDARDS['industry_avg_salary']
+            # 根据用户选择的行业获取对应的平均工资
+            selected_industry = self.industry_type.get() if hasattr(self, 'industry_type') else "其他行业"
+            industry_avg_salary = self.INDUSTRY_SALARIES.get(selected_industry, self.INDUSTRY_SALARIES['其他行业'])
             daily_avg_salary = industry_avg_salary / 365
             amount = daily_avg_salary * work_loss_days
-            detail = f"无固定收入（不能证明，参照行业平均）计算：\n行业平均工资：{industry_avg_salary:,.2f}元/年\n日均工资 = 年工资 ÷ 365 = {industry_avg_salary:,.2f} ÷ 365 = {daily_avg_salary:,.2f}元/天\n误工费 = 日均工资 × 误工天数 = {daily_avg_salary:,.2f} × {work_loss_days} = {amount:,.2f}元"
+            detail = f"无固定收入（不能证明，参照行业平均）计算：\n选择行业：{selected_industry}\n行业平均工资：{industry_avg_salary:,.2f}元/年\n日均工资 = 年工资 ÷ 365 = {industry_avg_salary:,.2f} ÷ 365 = {daily_avg_salary:,.2f}元/天\n误工费 = 日均工资 × 误工天数 = {daily_avg_salary:,.2f} × {work_loss_days} = {amount:,.2f}元"
             return amount, detail
     
     def calculate_nursing_fee(self):
@@ -486,11 +778,13 @@ class GuangxiCompensationCalculator:
             if traffic_fee > 0:
                 self.calculation_details['交通费'] = f"交通费 = {traffic_fee:,.2f}元"
             
-            # 5. 住宿费
-            accommodation_fee = self.get_float_value(self.accommodation_fee)
+            # 5. 住宿费（330元/天 × 住宿天数）
+            accommodation_days = self.get_int_value(self.accommodation_days)
+            accommodation_fee_per_day = self.STANDARDS['daily_accommodation_fee']
+            accommodation_fee = accommodation_days * accommodation_fee_per_day
             results['住宿费'] = accommodation_fee
             if accommodation_fee > 0:
-                self.calculation_details['住宿费'] = f"住宿费 = {accommodation_fee:,.2f}元"
+                self.calculation_details['住宿费'] = f"住宿天数：{accommodation_days}天\n住宿费标准：{accommodation_fee_per_day:,.2f}元/天\n住宿费 = 住宿天数 × 住宿费标准 = {accommodation_days} × {accommodation_fee_per_day:,.2f} = {accommodation_fee:,.2f}元"
             
             # 6. 误工费（根据收入类型计算）
             work_loss_fee, work_detail = self.calculate_work_loss_fee()
@@ -730,7 +1024,15 @@ class GuangxiCompensationCalculator:
             victim_name = self.victim_name.get().strip() or "未填写"
             victim_age = self.get_int_value(self.victim_age, 0)
             victim_type = self.victim_type.get()
-            accident_date = self.accident_date.get().strip() or "未填写"
+            # 获取日期选择器的日期
+            if hasattr(self.accident_date, 'get_date_str'):
+                accident_date = self.accident_date.get_date_str()
+            elif hasattr(self.accident_date, 'get_date'):
+                accident_date = self.accident_date.get_date().strftime('%Y-%m-%d')
+            else:
+                accident_date = self.accident_date.get().strip() if hasattr(self.accident_date, 'get') else "未填写"
+            if not accident_date or accident_date == "":
+                accident_date = "未填写"
             
             basic_table = doc.add_table(rows=4, cols=2)
             basic_table.style = 'Light Grid Accent 1'
@@ -934,6 +1236,10 @@ class GuangxiCompensationCalculator:
                 widget.set(values[0])
         elif isinstance(widget, tk.Checkbutton):
             widget.deselect()
+        elif hasattr(widget, '__class__') and 'DateEntry' in str(widget.__class__):
+            # 清空日期选择器，设置为今天
+            from datetime import date
+            widget.set_date(date.today())
         elif hasattr(widget, 'winfo_children'):
             for child in widget.winfo_children():
                 self._clear_widget(child)

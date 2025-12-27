@@ -74,7 +74,7 @@ class GuangxiCompensationCalculator:
     def __init__(self, root):
         self.root = root
         self.root.title("广西瀛桂律师事务所 唐学智律师制作 18078374299")
-        self.root.geometry("900x1000")
+        self.root.geometry("900x1300")
         self.root.resizable(True, True)
         
         # 创建主框架
@@ -310,13 +310,13 @@ class GuangxiCompensationCalculator:
         calculate_btn = tk.Button(main_button_frame, 
                                  text="✓ 计算赔偿", 
                                  command=self.calculate, 
-                                 bg="#27ae60", fg="white", 
+                                 bg="#27ae60", fg="blue", 
                                  font=("Microsoft YaHei", 11, "bold"),
                                  padx=20, pady=8, 
                                  relief="raised", bd=2,
                                  cursor="hand2", 
                                  activebackground="#229954",
-                                 activeforeground="white",
+                                 activeforeground="blue",
                                  highlightthickness=0)
         calculate_btn.pack(side="left", padx=4, expand=True, fill="both")
         
@@ -324,13 +324,13 @@ class GuangxiCompensationCalculator:
         export_btn = tk.Button(main_button_frame, 
                                text="📄 导出Word", 
                                command=self.export_to_word, 
-                               bg="#3498db", fg="white", 
+                               bg="#3498db", fg="blue", 
                                font=("Microsoft YaHei", 11, "bold"),
                                padx=20, pady=8, 
                                relief="raised", bd=2,
                                cursor="hand2", 
                                activebackground="#2980b9",
-                               activeforeground="white",
+                               activeforeground="blue",
                                highlightthickness=0)
         export_btn.pack(side="left", padx=4, expand=True, fill="both")
         
@@ -338,13 +338,13 @@ class GuangxiCompensationCalculator:
         clear_btn = tk.Button(main_button_frame, 
                              text="🗑️ 清空", 
                              command=self.clear_all, 
-                             bg="#95a5a6", fg="white", 
+                             bg="#95a5a6", fg="blue", 
                              font=("Microsoft YaHei", 10, "bold"),
                              padx=15, pady=8, 
                              relief="raised", bd=2,
                              cursor="hand2", 
                              activebackground="#7f8c8d",
-                             activeforeground="white",
+                             activeforeground="blue",
                              highlightthickness=0)
         clear_btn.pack(side="left", padx=4, expand=True, fill="both")
         
@@ -609,7 +609,7 @@ class GuangxiCompensationCalculator:
         additional_index = 0.0
         
         detail_parts = [f"伤残等级：{', '.join([f'{l}级' for l in disability_levels])}\n"]
-        detail_parts.append(f"最高伤残等级：{max_level}级，系数：{max_coefficient}\n")
+        detail_parts.append(f"最高伤残等级：{max_level}级，系数：{max_coefficient:.2f}\n")
         
         if additional_levels:
             detail_parts.append("附加伤残等级：")
@@ -626,14 +626,14 @@ class GuangxiCompensationCalculator:
             
             # 附加指数总和不超过10%
             additional_index = min(additional_index, 0.10)
-            detail_parts.append(f"\n附加指数合计：{additional_index * 100:.0f}%\n")
+            detail_parts.append(f"\n附加指数合计：{additional_index * 100:.2f}%\n")
         else:
             detail_parts.append("无附加伤残等级\n")
         
         # 计算最终系数（不超过100%）
         final_coefficient = min(max_coefficient + additional_index, 1.0)
         
-        detail_parts.append(f"最终伤残系数 = {max_coefficient} + {additional_index} = {final_coefficient}")
+        detail_parts.append(f"最终伤残系数 = {max_coefficient:.2f} + {additional_index:.2f} = {final_coefficient:.2f}")
         if final_coefficient >= 1.0:
             detail_parts.append("（已达到100%上限）")
         
@@ -658,7 +658,7 @@ class GuangxiCompensationCalculator:
         else:
             # 如果取消选择死亡赔偿，显示残疾赔偿框架
             # 在护理费框架之后、被扶养人生活费框架之前显示
-            self.disability_frame.pack(fill="x", padx=15, pady=8, before=self.dependent_frame)
+            self.disability_frame.pack(fill="x", padx=10, pady=3, before=self.dependent_frame)
     
     def calculate_compensation_years(self, age):
         """
@@ -884,7 +884,7 @@ class GuangxiCompensationCalculator:
             detail = "".join(detail_parts) + "\n按年计算明细：\n" + "\n".join(year_details) + f"\n\n小计 = " + total_formula + f" = {original_total:,.2f}元\n受害人死亡，系数为100%（无需乘以伤残系数）\n被扶养人生活费 = 小计 × 100% = {original_total:,.2f} × 1.0 = {total_expense:,.2f}元"
         elif disability_coefficient < 1.0:
             # 有伤残情况：使用伤残系数
-            detail = "".join(detail_parts) + "\n按年计算明细：\n" + "\n".join(year_details) + f"\n\n小计 = " + total_formula + f" = {original_total:,.2f}元\n伤残系数：{disability_coefficient}\n被扶养人生活费 = 小计 × 伤残系数 = {original_total:,.2f} × {disability_coefficient} = {total_expense:,.2f}元"
+            detail = "".join(detail_parts) + "\n按年计算明细：\n" + "\n".join(year_details) + f"\n\n小计 = " + total_formula + f" = {original_total:,.2f}元\n伤残系数：{disability_coefficient:.2f}\n被扶养人生活费 = 小计 × 伤残系数 = {original_total:,.2f} × {disability_coefficient:.2f} = {total_expense:,.2f}元"
         else:
             # 无伤残情况
             detail = "".join(detail_parts) + "\n按年计算明细：\n" + "\n".join(year_details) + f"\n\n总计 = " + total_formula + f" = {total_expense:,.2f}元"
@@ -971,7 +971,7 @@ class GuangxiCompensationCalculator:
                 year_desc = f"{years}年" if victim_age < 60 else (f"{years}年（60周岁以上每增加一岁减少一年）" if victim_age < 75 else f"{years}年（75周岁以上按5年计算）")
                 
                 # 构建计算详情
-                detail = f"{disability_detail}\n{income_type}：{base_income:,.2f}元/年\n赔偿年限：{year_desc}\n残疾赔偿金 = {income_type} × 赔偿年限 × 伤残系数 = {base_income:,.2f} × {years} × {disability_coefficient} = {disability_compensation:,.2f}元"
+                detail = f"{disability_detail}\n{income_type}：{base_income:,.2f}元/年\n赔偿年限：{year_desc}\n残疾赔偿金 = {income_type} × 赔偿年限 × 伤残系数 = {base_income:,.2f} × {years} × {disability_coefficient:.2f} = {disability_compensation:,.2f}元"
                 self.calculation_details['残疾赔偿金'] = detail
             else:
                 results['残疾赔偿金'] = 0
@@ -1548,7 +1548,7 @@ class GuangxiCompensationCalculator:
                         self.disability_frame.pack_info()
                     except:
                         # 如果框架被隐藏了，重新显示
-                        self.disability_frame.pack(fill="x", padx=15, pady=8, before=self.dependent_frame)
+                        self.disability_frame.pack(fill="x", padx=10, pady=3, before=self.dependent_frame)
             
             self.result_text.delete(1.0, tk.END)
             self.calculation_results = {}

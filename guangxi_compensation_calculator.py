@@ -15,6 +15,119 @@ from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 from docx.enum.section import WD_SECTION
 import os
+import platform
+
+
+class ThemeManager:
+    """主题管理器 - 提供固定的高对比度配色方案，不受系统主题影响"""
+    
+    # 浅色主题（固定，高对比度）
+    LIGHT_THEME = {
+        'window_bg': '#f5f5f5',
+        'frame_bg': '#f5f5f5',
+        'label_bg': '#f5f5f5',
+        'label_fg': '#000000',
+        'entry_bg': '#ffffff',
+        'entry_fg': '#000080',
+        'entry_insert': '#000080',
+        'text_bg': '#ffffff',
+        'text_fg': '#000000',
+        'text_insert': '#000000',
+        'text_select_bg': '#316AC5',
+        'text_select_fg': '#ffffff',
+        'button_calculate_bg': '#27ae60',
+        'button_calculate_fg': 'red',
+        'button_export_bg': '#3498db',
+        'button_export_fg': 'red',
+        'button_clear_bg': '#95a5a6',
+        'button_clear_fg': 'red',
+        'button_active_bg': '#229954',
+        'button_active_fg': '#ffffff',
+        'combobox_bg': '#ffffff',
+        'combobox_fg': '#000080',
+        'combobox_select_bg': '#e0e0e0',
+        'combobox_select_fg': '#000080',
+        'title_bg': '#2c3e50',
+        'title_fg': '#ffffff',
+        'subtitle_fg': '#ecf0f1',
+        'hint_fg': '#666666',
+        'checkbox_bg': '#f5f5f5',
+        'checkbox_fg': '#000000',
+        'checkbox_select': '#ffffff',
+    }
+    
+    # 深色主题（固定，高对比度）
+    DARK_THEME = {
+        'window_bg': '#1e1e1e',
+        'frame_bg': '#2d2d2d',
+        'label_bg': '#2d2d2d',
+        'label_fg': '#ffffff',
+        'entry_bg': '#3c3c3c',
+        'entry_fg': '#ffffff',
+        'entry_insert': '#ffffff',
+        'text_bg': '#3c3c3c',
+        'text_fg': '#ffffff',
+        'text_insert': '#ffffff',
+        'text_select_bg': '#316AC5',
+        'text_select_fg': '#ffffff',
+        'button_calculate_bg': '#27ae60',
+        'button_calculate_fg': '#ffffff',
+        'button_export_bg': '#3498db',
+        'button_export_fg': '#ffffff',
+        'button_clear_bg': '#7f8c8d',
+        'button_clear_fg': '#ffffff',
+        'button_active_bg': '#229954',
+        'button_active_fg': '#ffffff',
+        'combobox_bg': '#3c3c3c',
+        'combobox_fg': '#ffffff',
+        'combobox_select_bg': '#555555',
+        'combobox_select_fg': '#ffffff',
+        'title_bg': '#1a1a1a',
+        'title_fg': '#ffffff',
+        'subtitle_fg': '#cccccc',
+        'hint_fg': '#999999',
+        'checkbox_bg': '#2d2d2d',
+        'checkbox_fg': '#ffffff',
+        'checkbox_select': '#555555',
+    }
+    
+    @staticmethod
+    def get_theme(theme_name='light'):
+        """获取主题配色方案"""
+        if theme_name == 'dark':
+            return ThemeManager.DARK_THEME
+        else:
+            return ThemeManager.LIGHT_THEME
+    
+    @staticmethod
+    def detect_system_theme():
+        """检测系统主题（尝试检测，如果失败则返回浅色主题）"""
+        try:
+            system = platform.system()
+            if system == "Darwin":  # macOS
+                # macOS可以通过defaults命令检测
+                import subprocess
+                result = subprocess.run(['defaults', 'read', '-g', 'AppleInterfaceStyle'], 
+                                      capture_output=True, text=True, timeout=1)
+                if result.returncode == 0 and 'Dark' in result.stdout:
+                    return 'dark'
+            elif system == "Windows":  # Windows
+                # Windows可以通过注册表检测
+                try:
+                    import winreg
+                    key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, 
+                                       r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize")
+                    value, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
+                    winreg.CloseKey(key)
+                    if value == 0:
+                        return 'dark'
+                except:
+                    pass
+            # Linux或其他系统，默认返回浅色主题
+            return 'light'
+        except:
+            # 如果检测失败，默认返回浅色主题
+            return 'light'
 
 
 class GuangxiCompensationCalculator:
@@ -77,11 +190,46 @@ class GuangxiCompensationCalculator:
         self.root.geometry("900x1300")
         self.root.resizable(True, True)
         
-        # 配置ttk样式，设置Combobox文字颜色为深蓝色
-        style = ttk.Style()
-        style.configure("TCombobox", fieldbackground="white", foreground="#1565C0")
+        # 初始化主题（默认使用浅色主题，不受系统主题影响）
+        self.current_theme = 'light'
+        self.theme = ThemeManager.get_theme(self.current_theme)
+        
+        # 应用主题
+        self.apply_theme()
         
         # 创建主框架
+        self.create_widgets()
+    
+    def apply_theme(self):
+        """应用主题配色"""
+        # 设置窗口背景色
+        self.root.configure(bg=self.theme['window_bg'])
+        
+        # 配置ttk样式
+        style = ttk.Style()
+        style.configure("TCombobox", 
+                       fieldbackground=self.theme['combobox_bg'],
+                       foreground=self.theme['combobox_fg'],
+                       selectbackground=self.theme['combobox_select_bg'],
+                       selectforeground=self.theme['combobox_select_fg'])
+        
+        # 配置LabelFrame样式
+        style.configure("TLabelframe", 
+                        background=self.theme['frame_bg'],
+                        foreground=self.theme['label_fg'])
+        style.configure("TLabelframe.Label",
+                       background=self.theme['frame_bg'],
+                       foreground=self.theme['label_fg'],
+                       font=("Microsoft YaHei", 9, "bold"))
+    
+    def toggle_theme(self):
+        """切换主题"""
+        self.current_theme = 'dark' if self.current_theme == 'light' else 'light'
+        self.theme = ThemeManager.get_theme(self.current_theme)
+        self.apply_theme()
+        # 重新创建所有组件以应用新主题
+        for widget in self.root.winfo_children():
+            widget.destroy()
         self.create_widgets()
         
     def create_widgets(self):
@@ -181,20 +329,34 @@ class GuangxiCompensationCalculator:
         self.canvas = canvas
         self.scrollable_frame = scrollable_frame
         
-        # 标题区域 - 紧凑设计
-        title_frame = tk.Frame(scrollable_frame, bg="#2c3e50", height=45)
+        # 标题区域 - 紧凑设计，使用主题颜色
+        title_frame = tk.Frame(scrollable_frame, bg=self.theme['title_bg'], height=45)
         title_frame.pack(fill="x", padx=0, pady=0)
         title_label = tk.Label(title_frame, text="广西人身损害赔偿计算器", 
                                font=("Microsoft YaHei", 16, "bold"),
-                               bg="#2c3e50", fg="white")
+                               bg=self.theme['title_bg'], fg=self.theme['title_fg'])
         title_label.pack(pady=8)
         
         # 副标题
         subtitle_label = tk.Label(title_frame, 
                                  text="根据（桂高法会〔2025〕13号），（桂公通〔2025〕60号）",
                                  font=("Microsoft YaHei", 8),
-                                 bg="#2c3e50", fg="#ecf0f1")
+                                 bg=self.theme['title_bg'], fg=self.theme['subtitle_fg'])
         subtitle_label.pack(pady=(0, 5))
+        
+        # 主题切换按钮（右上角）
+        theme_button = tk.Button(title_frame, 
+                                text="🌓 切换主题" if self.current_theme == 'light' else "☀️ 切换主题",
+                                command=self.toggle_theme,
+                                bg=self.theme['title_bg'], 
+                                fg=self.theme['title_fg'],
+                                font=("Microsoft YaHei", 8),
+                                relief="flat",
+                                bd=0,
+                                cursor="hand2",
+                                activebackground=self.theme['title_bg'],
+                                activeforeground=self.theme['title_fg'])
+        theme_button.pack(side="right", padx=10, pady=5)
         
         # 基本信息框架 - 紧凑设计
         basic_frame = ttk.LabelFrame(scrollable_frame, text="📋 基本信息", padding=6)
@@ -230,7 +392,8 @@ class GuangxiCompensationCalculator:
         self.avg_daily_income = self.create_entry(work_frame, "日均收入（元，无固定收入能证明时填写）：", 2)
         
         # 行业选择下拉框（仅在选择"无固定收入（不能证明，参照行业平均）"时显示）
-        self.industry_label = tk.Label(work_frame, text="行业类型：", font=("Microsoft YaHei", 8))
+        self.industry_label = tk.Label(work_frame, text="行业类型：", font=("Microsoft YaHei", 8),
+                                       bg=self.theme['label_bg'], fg=self.theme['label_fg'])
         self.industry_label.grid(row=3, column=0, sticky="w", padx=6, pady=2)
         self.industry_type = ttk.Combobox(work_frame, values=list(self.INDUSTRY_SALARIES.keys()), 
                                           width=39, state="readonly", font=("Microsoft YaHei", 8),
@@ -264,16 +427,20 @@ class GuangxiCompensationCalculator:
         self.disability_frame.pack(fill="x", padx=10, pady=3)
         
         # 伤残等级输入（支持多处伤残，用逗号或分号分隔，如：5级,8级 或 3级;5级;9级）
-        disability_label = tk.Label(self.disability_frame, text="伤残等级：", font=("Microsoft YaHei", 8))
+        disability_label = tk.Label(self.disability_frame, text="伤残等级：", font=("Microsoft YaHei", 8),
+                                    bg=self.theme['label_bg'], fg=self.theme['label_fg'])
         disability_label.grid(row=0, column=0, sticky="w", padx=6, pady=2)
         self.disability_level = tk.Entry(self.disability_frame, width=40, font=("Microsoft YaHei", 8),
-                                        bg="#ffffff", fg="#1565C0")
+                                        bg=self.theme['entry_bg'],
+                                        fg=self.theme['entry_fg'],
+                                        insertbackground=self.theme['entry_insert'])
         self.disability_level.grid(row=0, column=1, padx=6, pady=2)
         self.disability_level.insert(0, "无")
         # 添加提示标签
         hint_label = tk.Label(self.disability_frame, 
                              text="提示：支持多处伤残，用逗号或分号分隔，如：5级,8级 或 3级;5级;9级（最高等级在前）",
-                             font=("Microsoft YaHei", 7), fg="#7f8c8d")
+                             font=("Microsoft YaHei", 7), 
+                             bg=self.theme['label_bg'], fg=self.theme['hint_fg'])
         hint_label.grid(row=0, column=2, padx=(3, 0), pady=2, sticky="w")
         
         self.disability_appliance_fee = self.create_entry(self.disability_frame, "残疾辅助器具费（元）：", 1)
@@ -284,7 +451,8 @@ class GuangxiCompensationCalculator:
         
         self.dependent_info = self.create_entry(self.dependent_frame, "被扶养人信息（格式：年龄1,扶养人数1;年龄2,扶养人数2，如：5,2;65,1）：", 0)
         tk.Label(self.dependent_frame, text="说明：不满18岁按(18-年龄)年计算；18-60岁无劳动能力按20年；60-75岁按[20-(年龄-60)]年；75岁以上按5年", 
-                font=("Arial", 7), fg="gray").grid(row=1, column=0, columnspan=2, sticky="w", padx=6, pady=1)
+                font=("Arial", 7), 
+                bg=self.theme['label_bg'], fg=self.theme['hint_fg']).grid(row=1, column=0, columnspan=2, sticky="w", padx=6, pady=1)
         
         # 死亡相关框架
         death_frame = ttk.LabelFrame(scrollable_frame, text="⚰️ 死亡赔偿（如适用）", padding=6)
@@ -292,7 +460,12 @@ class GuangxiCompensationCalculator:
         
         self.is_death = tk.BooleanVar()
         death_checkbutton = tk.Checkbutton(death_frame, text="是否死亡", variable=self.is_death,
-                                           command=self.on_death_changed, font=("Microsoft YaHei", 8))
+                                           command=self.on_death_changed, font=("Microsoft YaHei", 8),
+                                           bg=self.theme['checkbox_bg'], 
+                                           fg=self.theme['checkbox_fg'],
+                                           selectcolor=self.theme['checkbox_select'],
+                                           activebackground=self.theme['checkbox_bg'],
+                                           activeforeground=self.theme['checkbox_fg'])
         death_checkbutton.grid(row=0, column=0, sticky="w", padx=6, pady=2)
         
         # 初始状态：如果死亡被选中，隐藏残疾赔偿
@@ -304,25 +477,26 @@ class GuangxiCompensationCalculator:
         
         self.mental_damage = self.create_entry(mental_frame, "精神损害抚慰金（元）：", 0)
         
-        # 按钮框架 - 紧凑设计
-        button_container = tk.Frame(scrollable_frame, bg="#f8f9fa", relief="raised", bd=1)
+        # 按钮框架 - 紧凑设计，使用主题颜色
+        button_container = tk.Frame(scrollable_frame, bg=self.theme['frame_bg'], relief="raised", bd=1)
         button_container.pack(fill="x", padx=10, pady=5)
         
         # 主操作按钮区域 - 横向排列
-        main_button_frame = tk.Frame(button_container, bg="#f8f9fa")
+        main_button_frame = tk.Frame(button_container, bg=self.theme['frame_bg'])
         main_button_frame.pack(fill="x", padx=10, pady=5)
         
         # 计算赔偿按钮
         calculate_btn = tk.Button(main_button_frame, 
                                  text="✓ 计算赔偿", 
                                  command=self.calculate, 
-                                 bg="#27ae60", fg="blue", 
+                                 bg=self.theme['button_calculate_bg'], 
+                                 fg=self.theme['button_calculate_fg'],
                                  font=("Microsoft YaHei", 11, "bold"),
                                  padx=20, pady=8, 
                                  relief="raised", bd=2,
                                  cursor="hand2", 
-                                 activebackground="#229954",
-                                 activeforeground="blue",
+                                 activebackground=self.theme['button_active_bg'],
+                                 activeforeground=self.theme['button_active_fg'],
                                  highlightthickness=0)
         calculate_btn.pack(side="left", padx=4, expand=True, fill="both")
         
@@ -330,13 +504,14 @@ class GuangxiCompensationCalculator:
         export_btn = tk.Button(main_button_frame, 
                                text="📄 导出Word", 
                                command=self.export_to_word, 
-                               bg="#3498db", fg="blue", 
+                               bg=self.theme['button_export_bg'], 
+                               fg=self.theme['button_export_fg'],
                                font=("Microsoft YaHei", 11, "bold"),
                                padx=20, pady=8, 
                                relief="raised", bd=2,
                                cursor="hand2", 
-                               activebackground="#2980b9",
-                               activeforeground="blue",
+                               activebackground=self.theme['button_active_bg'],
+                               activeforeground=self.theme['button_active_fg'],
                                highlightthickness=0)
         export_btn.pack(side="left", padx=4, expand=True, fill="both")
         
@@ -344,13 +519,14 @@ class GuangxiCompensationCalculator:
         clear_btn = tk.Button(main_button_frame, 
                              text="🗑️ 清空", 
                              command=self.clear_all, 
-                             bg="#95a5a6", fg="blue", 
+                             bg=self.theme['button_clear_bg'], 
+                             fg=self.theme['button_clear_fg'],
                              font=("Microsoft YaHei", 10, "bold"),
                              padx=15, pady=8, 
                              relief="raised", bd=2,
                              cursor="hand2", 
-                             activebackground="#7f8c8d",
-                             activeforeground="blue",
+                             activebackground=self.theme['button_active_bg'],
+                             activeforeground=self.theme['button_active_fg'],
                              highlightthickness=0)
         clear_btn.pack(side="left", padx=4, expand=True, fill="both")
         
@@ -360,8 +536,12 @@ class GuangxiCompensationCalculator:
         
         self.result_text = tk.Text(result_frame, height=10, wrap=tk.WORD, 
                                    font=("Consolas", 9), 
-                                   bg="#ffffff", fg="#2c3e50",
-                                   relief="solid", borderwidth=1)
+                                   bg=self.theme['text_bg'],
+                                   fg=self.theme['text_fg'],
+                                   insertbackground=self.theme['text_insert'],
+                                   relief="solid", borderwidth=1,
+                                   selectbackground=self.theme['text_select_bg'],
+                                   selectforeground=self.theme['text_select_fg'])
         self.result_text.pack(fill="both", expand=True)
         
         # 存储计算结果和计算详情
@@ -373,16 +553,21 @@ class GuangxiCompensationCalculator:
         
     def create_entry(self, parent, label_text, row):
         """创建输入框"""
-        label = tk.Label(parent, text=label_text, font=("Microsoft YaHei", 8))
+        label = tk.Label(parent, text=label_text, font=("Microsoft YaHei", 8),
+                        bg=self.theme['label_bg'], fg=self.theme['label_fg'])
         label.grid(row=row, column=0, sticky="w", padx=6, pady=2)
         entry = tk.Entry(parent, width=42, font=("Microsoft YaHei", 8),
-                         relief="solid", borderwidth=1, bg="#ffffff", fg="#1565C0")
+                         relief="solid", borderwidth=1, 
+                         bg=self.theme['entry_bg'],
+                         fg=self.theme['entry_fg'],
+                         insertbackground=self.theme['entry_insert'])
         entry.grid(row=row, column=1, padx=6, pady=2)
         return entry
     
     def create_combobox(self, parent, label_text, values, row):
         """创建下拉框"""
-        label = tk.Label(parent, text=label_text, font=("Microsoft YaHei", 8))
+        label = tk.Label(parent, text=label_text, font=("Microsoft YaHei", 8),
+                        bg=self.theme['label_bg'], fg=self.theme['label_fg'])
         label.grid(row=row, column=0, sticky="w", padx=6, pady=2)
         combobox = ttk.Combobox(parent, values=values, width=39, state="readonly",
                                font=("Microsoft YaHei", 8), style="TCombobox")
@@ -393,11 +578,12 @@ class GuangxiCompensationCalculator:
     
     def create_date_selectors(self, parent, label_text, row):
         """创建日期选择器（年、月、日三个下拉框）"""
-        label = tk.Label(parent, text=label_text, font=("Microsoft YaHei", 8))
+        label = tk.Label(parent, text=label_text, font=("Microsoft YaHei", 8),
+                        bg=self.theme['label_bg'], fg=self.theme['label_fg'])
         label.grid(row=row, column=0, sticky="w", padx=6, pady=2)
         
         # 创建日期选择器框架
-        date_frame = tk.Frame(parent)
+        date_frame = tk.Frame(parent, bg=self.theme['frame_bg'])
         date_frame.grid(row=row, column=1, padx=6, pady=2, sticky="w")
         
         # 获取当前日期
@@ -414,7 +600,8 @@ class GuangxiCompensationCalculator:
         days = [f"{d:02d}" for d in range(1, 32)]
         
         # 创建年份下拉框
-        year_label = tk.Label(date_frame, text="年", font=("Microsoft YaHei", 8))
+        year_label = tk.Label(date_frame, text="年", font=("Microsoft YaHei", 8),
+                             bg=self.theme['frame_bg'], fg=self.theme['label_fg'])
         year_label.pack(side="left", padx=(0, 1))
         year_combo = ttk.Combobox(date_frame, values=years, width=6, 
                                  state="readonly", font=("Microsoft YaHei", 8),
@@ -423,7 +610,8 @@ class GuangxiCompensationCalculator:
         year_combo.pack(side="left", padx=1)
         
         # 创建月份下拉框
-        month_label = tk.Label(date_frame, text="月", font=("Microsoft YaHei", 8))
+        month_label = tk.Label(date_frame, text="月", font=("Microsoft YaHei", 8),
+                              bg=self.theme['frame_bg'], fg=self.theme['label_fg'])
         month_label.pack(side="left", padx=(0, 1))
         month_combo = ttk.Combobox(date_frame, values=months, width=4, 
                                   state="readonly", font=("Microsoft YaHei", 8),
@@ -432,7 +620,8 @@ class GuangxiCompensationCalculator:
         month_combo.pack(side="left", padx=1)
         
         # 创建日期下拉框
-        day_label = tk.Label(date_frame, text="日", font=("Microsoft YaHei", 8))
+        day_label = tk.Label(date_frame, text="日", font=("Microsoft YaHei", 8),
+                            bg=self.theme['frame_bg'], fg=self.theme['label_fg'])
         day_label.pack(side="left", padx=(0, 1))
         day_combo = ttk.Combobox(date_frame, values=days, width=4, 
                                 state="readonly", font=("Microsoft YaHei", 8),

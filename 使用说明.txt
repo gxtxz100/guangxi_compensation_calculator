@@ -91,3 +91,10 @@ python3 guangxi_compensation_calculator.py
 
 如有问题，请参考README.md文件获取更多信息。
 
+注意事项
+安全配置：修改 app.py 中的 SECRET_KEY
+端口配置：默认使用 5000 端口，可在 docker-compose.yml 中修改
+防火墙：确保 ECS 安全组开放 5000 端口
+Nginx：生产环境建议配置 Nginx 反向代理和 SSL
+所有文件已创建完成，可以直接部署到阿里云 ECS 服务器。如有问题，请查看 DEPLOY.md 中的故障排查部分。
+

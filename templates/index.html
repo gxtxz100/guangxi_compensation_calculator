@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>广西人身损害赔偿计算器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: "Microsoft YaHei", "SimHei", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 30px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #667eea;
+        }
+        
+        .header h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .form-section {
+            margin-bottom: 25px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .form-section h2 {
+            color: #333;
+            font-size: 18px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .form-section h2::before {
+            content: "📋";
+            margin-right: 8px;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+        
+        label {
+            font-weight: bold;
+            color: #555;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        
+        input[type="text"],
+        input[type="number"],
+        select {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 15px;
+            margin: 30px 0;
+            justify-content: center;
+        }
+        
+        button {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-calculate {
+            background: #27ae60;
+            color: white;
+        }
+        
+        .btn-calculate:hover {
+            background: #229954;
+        }
+        
+        .btn-export {
+            background: #3498db;
+            color: white;
+        }
+        
+        .btn-export:hover {
+            background: #2980b9;
+        }
+        
+        .btn-clear {
+            background: #95a5a6;
+            color: white;
+        }
+        
+        .btn-clear:hover {
+            background: #7f8c8d;
+        }
+        
+        .result-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #27ae60;
+        }
+        
+        .result-section h2 {
+            color: #333;
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+        
+        .result-content {
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            font-family: "Consolas", "Courier New", monospace;
+            white-space: pre-wrap;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .error {
+            color: #e74c3c;
+            background: #fadbd8;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        
+        .success {
+            color: #27ae60;
+            background: #d5f4e6;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .btn-group {
+                flex-direction: column;
+            }
+            
+            button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>广西人身损害赔偿计算器</h1>
+            <p>根据（桂高法会〔2025〕13号），（桂公通〔2025〕60号）</p>
+        </div>
+        
+        <form id="compensationForm">
+            <!-- 基本信息 -->
+            <div class="form-section">
+                <h2>基本信息</h2>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>受害人姓名：</label>
+                        <input type="text" name="victim_name" id="victim_name">
+                    </div>
+                    <div class="form-group">
+                        <label>受害人年龄：</label>
+                        <input type="number" name="victim_age" id="victim_age" min="0">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>事故发生日期：</label>
+                        <input type="date" name="accident_date" id="accident_date">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 医疗相关费用 -->
+            <div class="form-section">
+                <h2>医疗相关费用</h2>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>医疗费（元）：</label>
+                        <input type="number" name="medical_expense" id="medical_expense" step="0.01" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>后续治疗费（元）：</label>
+                        <input type="number" name="follow_up_treatment_fee" id="follow_up_treatment_fee" step="0.01" min="0">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>住院天数：</label>
+                        <input type="number" name="hospital_days" id="hospital_days" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>住院伙食补助费（元/天，默认100）：</label>
+                        <input type="number" name="meal_subsidy" id="meal_subsidy" step="0.01" min="0" value="100">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>营养费（元）：</label>
+                        <input type="number" name="nutrition_fee" id="nutrition_fee" step="0.01" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>交通费（元）：</label>
+                        <input type="number" name="traffic_fee" id="traffic_fee" step="0.01" min="0">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>住宿天数：</label>
+                        <input type="number" name="accommodation_days" id="accommodation_days" min="0">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 误工费 -->
+            <div class="form-section">
+                <h2>误工费</h2>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>收入类型：</label>
+                        <select name="work_income_type" id="work_income_type" onchange="toggleWorkIncomeFields()">
+                            <option value="固定收入">固定收入</option>
+                            <option value="无固定收入（能证明最近三年平均）">无固定收入（能证明最近三年平均）</option>
+                            <option value="无固定收入（不能证明，参照行业平均）">无固定收入（不能证明，参照行业平均）</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="monthly_income_group">
+                        <label>月收入（元）：</label>
+                        <input type="number" name="monthly_income" id="monthly_income" step="0.01" min="0">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group hidden" id="avg_daily_income_group">
+                        <label>日均收入（元）：</label>
+                        <input type="number" name="avg_daily_income" id="avg_daily_income" step="0.01" min="0">
+                    </div>
+                    <div class="form-group hidden" id="industry_type_group">
+                        <label>行业类型：</label>
+                        <select name="industry_type" id="industry_type">
+                            {% for industry in industry_salaries %}
+                            <option value="{{ industry }}">{{ industry }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>误工天数：</label>
+                        <input type="number" name="work_loss_days" id="work_loss_days" min="0">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 护理费 -->
+            <div class="form-section">
+                <h2>护理费</h2>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>护理人员类型：</label>
+                        <select name="nursing_type" id="nursing_type" onchange="toggleNursingFields()">
+                            <option value="有收入">有收入</option>
+                            <option value="无收入或雇佣护工">无收入或雇佣护工</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="nursing_income_group">
+                        <label>护理人员日均收入（元）：</label>
+                        <input type="number" name="nursing_income" id="nursing_income" step="0.01" min="0">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>护理天数：</label>
+                        <input type="number" name="nursing_days" id="nursing_days" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>护理人数（默认1人）：</label>
+                        <input type="number" name="nursing_count" id="nursing_count" min="1" value="1">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 残疾赔偿 -->
+            <div class="form-section" id="disability_section">
+                <h2>残疾赔偿</h2>
+                <div class="form-row">
+                    <div class="form-group full-width">
+                        <label>伤残等级（支持多处伤残，用逗号或分号分隔，如：5级,8级）：</label>
+                        <input type="text" name="disability_level" id="disability_level" placeholder="无">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>残疾辅助器具费（元）：</label>
+                        <input type="number" name="disability_appliance_fee" id="disability_appliance_fee" step="0.01" min="0">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 被扶养人生活费 -->
+            <div class="form-section">
+                <h2>被扶养人生活费</h2>
+                <div class="form-row">
+                    <div class="form-group full-width">
+                        <label>被扶养人信息（格式：年龄1,扶养人数1;年龄2,扶养人数2，如：5,2;65,1）：</label>
+                        <input type="text" name="dependent_info" id="dependent_info" placeholder="如：5,2;65,1">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 死亡赔偿 -->
+            <div class="form-section">
+                <h2>死亡赔偿（如适用）</h2>
+                <div class="form-row">
+                    <div class="form-group">
+                        <div class="checkbox-group">
+                            <input type="checkbox" name="is_death" id="is_death" onchange="toggleDeathFields()">
+                            <label for="is_death">是否死亡</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 精神损害抚慰金 -->
+            <div class="form-section">
+                <h2>精神损害抚慰金</h2>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>精神损害抚慰金（元）：</label>
+                        <input type="number" name="mental_damage" id="mental_damage" step="0.01" min="0">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 按钮组 -->
+            <div class="btn-group">
+                <button type="button" class="btn-calculate" onclick="calculate()">✓ 计算赔偿</button>
+                <button type="button" class="btn-export" onclick="exportWord()">📄 导出Word</button>
+                <button type="button" class="btn-clear" onclick="clearForm()">🗑️ 清空</button>
+            </div>
+        </form>
+        
+        <!-- 结果显示 -->
+        <div class="result-section hidden" id="result_section">
+            <h2>计算结果</h2>
+            <div class="result-content" id="result_content"></div>
+        </div>
+        
+        <div id="message"></div>
+    </div>
+    
+    <script>
+        let calculationData = null;
+        
+        function toggleWorkIncomeFields() {
+            const incomeType = document.getElementById('work_income_type').value;
+            const monthlyGroup = document.getElementById('monthly_income_group');
+            const avgDailyGroup = document.getElementById('avg_daily_income_group');
+            const industryGroup = document.getElementById('industry_type_group');
+            
+            if (incomeType === '固定收入') {
+                monthlyGroup.classList.remove('hidden');
+                avgDailyGroup.classList.add('hidden');
+                industryGroup.classList.add('hidden');
+            } else if (incomeType === '无固定收入（能证明最近三年平均）') {
+                monthlyGroup.classList.add('hidden');
+                avgDailyGroup.classList.remove('hidden');
+                industryGroup.classList.add('hidden');
+            } else {
+                monthlyGroup.classList.add('hidden');
+                avgDailyGroup.classList.add('hidden');
+                industryGroup.classList.remove('hidden');
+            }
+        }
+        
+        function toggleNursingFields() {
+            const nursingType = document.getElementById('nursing_type').value;
+            const nursingIncomeGroup = document.getElementById('nursing_income_group');
+            
+            if (nursingType === '有收入') {
+                nursingIncomeGroup.classList.remove('hidden');
+            } else {
+                nursingIncomeGroup.classList.add('hidden');
+            }
+        }
+        
+        function toggleDeathFields() {
+            const isDeath = document.getElementById('is_death').checked;
+            const disabilitySection = document.getElementById('disability_section');
+            
+            if (isDeath) {
+                disabilitySection.classList.add('hidden');
+            } else {
+                disabilitySection.classList.remove('hidden');
+            }
+        }
+        
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.className = type;
+            messageDiv.textContent = text;
+            messageDiv.classList.remove('hidden');
+            
+            setTimeout(() => {
+                messageDiv.classList.add('hidden');
+            }, 5000);
+        }
+        
+        function calculate() {
+            const form = document.getElementById('compensationForm');
+            const formData = new FormData(form);
+            const data = {};
+            
+            for (let [key, value] of formData.entries()) {
+                if (key === 'is_death') {
+                    data[key] = document.getElementById('is_death').checked;
+                } else {
+                    data[key] = value;
+                }
+            }
+            
+            fetch('/api/calculate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    calculationData = result;
+                    displayResults(result);
+                    showMessage('计算完成！', 'success');
+                } else {
+                    showMessage('计算失败：' + result.error, 'error');
+                }
+            })
+            .catch(error => {
+                showMessage('计算失败：' + error.message, 'error');
+            });
+        }
+        
+        function displayResults(result) {
+            const resultSection = document.getElementById('result_section');
+            const resultContent = document.getElementById('result_content');
+            
+            let output = '='.repeat(50) + '\n';
+            output += '广西人身损害赔偿计算结果\n';
+            output += '='.repeat(50) + '\n\n';
+            output += `受害人姓名：${result.victim_name}\n`;
+            output += `受害人年龄：${result.victim_age}岁\n`;
+            output += `计算日期：${new Date().toLocaleString('zh-CN')}\n`;
+            output += '\n' + '-'.repeat(50) + '\n';
+            output += '各项赔偿明细：\n';
+            output += '-'.repeat(50) + '\n\n';
+            
+            const itemsOrder = ['医疗费', '后续治疗费', '误工费', '护理费', '交通费', '住宿费', '住院伙食补助费', 
+                              '营养费', '残疾赔偿金', '残疾辅助器具费', '被扶养人生活费', 
+                              '死亡赔偿金', '丧葬费', '精神损害抚慰金'];
+            
+            for (let item of itemsOrder) {
+                if (result.results[item] && result.results[item] > 0) {
+                    output += `${item.padEnd(20)}：${result.results[item].toLocaleString('zh-CN', {minimumFractionDigits: 2, maximumFractionDigits: 2}).padStart(15)} 元\n`;
+                }
+            }
+            
+            output += '\n' + '-'.repeat(50) + '\n';
+            output += `${'总计'.padEnd(20)}：${result.results['总计'].toLocaleString('zh-CN', {minimumFractionDigits: 2, maximumFractionDigits: 2}).padStart(15)} 元\n`;
+            output += '='.repeat(50) + '\n';
+            
+            resultContent.textContent = output;
+            resultSection.classList.remove('hidden');
+        }
+        
+        function exportWord() {
+            if (!calculationData) {
+                showMessage('请先进行计算！', 'error');
+                return;
+            }
+            
+            const form = document.getElementById('compensationForm');
+            const formData = new FormData(form);
+            const data = {
+                ...calculationData,
+                accident_date: formData.get('accident_date') || new Date().toISOString().split('T')[0]
+            };
+            
+            fetch('/api/export_word', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => {
+                if (response.ok) {
+                    return response.blob();
+                }
+                return response.json().then(err => Promise.reject(err));
+            })
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${calculationData.victim_name !== '未填写' ? calculationData.victim_name : '赔偿'}计算结果.docx`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                showMessage('Word文档导出成功！', 'success');
+            })
+            .catch(error => {
+                showMessage('导出失败：' + (error.error || error.message), 'error');
+            });
+        }
+        
+        function clearForm() {
+            if (confirm('确定要清空所有数据吗？')) {
+                document.getElementById('compensationForm').reset();
+                document.getElementById('result_section').classList.add('hidden');
+                calculationData = null;
+                document.getElementById('accident_date').value = new Date().toISOString().split('T')[0];
+                document.getElementById('meal_subsidy').value = '100';
+                document.getElementById('nursing_count').value = '1';
+                toggleWorkIncomeFields();
+                toggleNursingFields();
+                toggleDeathFields();
+            }
+        }
+        
+        // 初始化
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('accident_date').value = today;
+    </script>
+</body>
+</html>
+

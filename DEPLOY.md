@@ -60,7 +60,34 @@ curl -L "https://github.com/docker/compose/releases/latest/download/docker-compo
 chmod +x /usr/local/bin/docker-compose
 ```
 
-### 3. 上传项目文件到服务器
+### 3. 配置Docker镜像加速器（重要！）
+
+**这是解决网络连接问题的关键步骤！**
+
+```bash
+# 运行配置脚本
+sudo ./setup-docker-mirror.sh
+
+# 或者手动配置
+sudo mkdir -p /etc/docker
+sudo tee /etc/docker/daemon.json > /dev/null <<EOF
+{
+  "registry-mirrors": [
+    "https://registry.cn-hangzhou.aliyuncs.com",
+    "https://docker.mirrors.ustc.edu.cn",
+    "https://hub-mirror.c.163.com"
+  ]
+}
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl restart docker
+
+# 验证配置
+docker info | grep -A 10 'Registry Mirrors'
+```
+
+### 4. 上传项目文件到服务器
 
 #### 方法1：使用Git（推荐）
 
@@ -68,7 +95,7 @@ chmod +x /usr/local/bin/docker-compose
 # 在服务器上克隆项目
 cd /opt
 git clone your-repository-url guangxi_compensation_calculator
-cd guangxi_compensation_calculator/omr
+cd guangxi_compensation_calculator
 ```
 
 #### 方法2：使用SCP上传
@@ -76,18 +103,21 @@ cd guangxi_compensation_calculator/omr
 在本地机器上执行：
 
 ```bash
-scp -r /path/to/omr root@your-server-ip:/opt/guangxi_compensation_calculator/
+scp -r /path/to/project root@your-server-ip:/opt/guangxi_compensation_calculator/
 ```
 
 然后在服务器上：
 
 ```bash
-cd /opt/guangxi_compensation_calculator/omr
+cd /opt/guangxi_compensation_calculator
 ```
 
-### 4. 构建和启动Docker容器
+### 5. 构建和启动Docker容器
 
 ```bash
+# 创建临时目录
+mkdir -p temp
+
 # 构建Docker镜像
 docker-compose build
 
@@ -98,7 +128,7 @@ docker-compose up -d
 docker-compose logs -f
 ```
 
-### 5. 配置防火墙
+### 6. 配置防火墙
 
 确保ECS安全组和系统防火墙允许5000端口：
 
@@ -112,7 +142,7 @@ firewall-cmd --permanent --add-port=5000/tcp
 firewall-cmd --reload
 ```
 
-### 6. 配置Nginx反向代理（可选但推荐）
+### 7. 配置Nginx反向代理（可选但推荐）
 
 安装Nginx：
 
@@ -161,7 +191,7 @@ nginx -t
 systemctl restart nginx
 ```
 
-### 7. 配置SSL证书（可选，推荐用于生产环境）
+### 8. 配置SSL证书（可选，推荐用于生产环境）
 
 使用Let's Encrypt免费SSL证书：
 
@@ -239,7 +269,23 @@ docker stats guangxi_compensation_calculator
 
 ## 故障排查
 
-### 1. 容器无法启动
+### 1. Docker镜像拉取失败（网络超时）
+
+**问题**：`failed to resolve source metadata for docker.io/library/python:3.11-slim`
+
+**解决方案**：
+```bash
+# 1. 配置Docker镜像加速器（必须！）
+sudo ./setup-docker-mirror.sh
+
+# 2. 验证配置
+docker info | grep -A 10 'Registry Mirrors'
+
+# 3. 重新构建
+docker-compose build
+```
+
+### 2. 容器无法启动
 
 检查日志：
 
@@ -247,7 +293,7 @@ docker stats guangxi_compensation_calculator
 docker-compose logs
 ```
 
-### 2. 端口被占用
+### 3. 端口被占用
 
 检查端口占用：
 
@@ -257,19 +303,29 @@ netstat -tulpn | grep 5000
 
 修改`docker-compose.yml`中的端口映射。
 
-### 3. 无法访问应用
+### 4. 无法访问应用
 
 - 检查ECS安全组规则是否开放5000端口
 - 检查系统防火墙设置
 - 检查容器是否正常运行：`docker-compose ps`
 
-### 4. Word文档导出失败
+### 5. Word文档导出失败
 
 检查临时目录权限：
 
 ```bash
 mkdir -p temp
 chmod 777 temp
+```
+
+### 6. pip安装依赖失败
+
+如果pip安装Python包时失败，Dockerfile已配置使用阿里云镜像源。如果仍有问题，可以手动测试：
+
+```bash
+docker run -it python:3.11-slim bash
+pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/
+pip install flask python-docx
 ```
 
 ## 性能优化建议
@@ -301,7 +357,7 @@ tar -czf backup-$(date +%Y%m%d).tar.gz /opt/guangxi_compensation_calculator
 # 解压备份
 tar -xzf backup-YYYYMMDD.tar.gz -C /
 # 重新构建和启动
-cd /opt/guangxi_compensation_calculator/omr
+cd /opt/guangxi_compensation_calculator
 docker-compose up -d --build
 ```
 
@@ -317,4 +373,4 @@ docker-compose up -d --build
 - 初始Docker部署版本
 - 支持Web界面访问
 - 支持Word文档导出
-
+- 配置国内镜像加速器支持
